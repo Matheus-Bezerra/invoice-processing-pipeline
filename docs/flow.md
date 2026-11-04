@@ -56,7 +56,7 @@ sequenceDiagram
     participant W as worker
 
     C->>API: POST /invoices {accessKey}
-    API->>API: valida os 44 dígitos
+    API->>API: aplica trim e valida os 44 dígitos
     API->>DB: BEGIN, INSERT da nota (IN_ANALYSIS), INSERT no outbox, COMMIT
     API->>DB: reserva a linha do outbox (FOR UPDATE SKIP LOCKED)
     API->>MQ: publica EnrichmentRequest (messageId, invoiceId, accessKey)
@@ -66,7 +66,7 @@ sequenceDiagram
 
     MQ->>P: entrega a solicitação
     P->>P: pequeno atraso, monta resultado completo
-    P->>MQ: publica EnrichmentResult (messageId, accessKey, cnpj, amount, issueDate, cancelled=false)
+    P->>MQ: publica EnrichmentResult (messageId derivado do da solicitação, accessKey, cnpj, amount, issueDate, cancelled=false)
     MQ->>W: entrega o resultado
     W->>DB: BEGIN, trava a nota, INSERT em processed_messages, aprova, COMMIT
     W->>MQ: ack
@@ -128,7 +128,7 @@ flowchart TD
     I -- "sim" --> R1["REJECTED: nota cancelada pelo emitente"]
     I -- "não" --> J{"cnpj, amount, issueDate e cancelled presentes?"}
     J -- "não" --> R2["REJECTED: incompleta, lista os campos ausentes"]
-    J -- "sim" --> K{"CNPJ válido e amount não negativo?"}
+    J -- "sim" --> K{"CNPJ válido (14 caracteres, dígitos verificadores) e amount não negativo?"}
     K -- "não" --> R3["REJECTED: dados inválidos"]
     K -- "sim" --> AP["APPROVED: grava os dados e approvedAt"]
     R1 --> CM["COMMIT e ack"]
@@ -137,10 +137,10 @@ flowchart TD
     AP --> CM
 
     TX["Erro técnico dentro da transação (por exemplo, banco fora do ar)"] --> RB["Rollback"]
-    RB --> RT{"Tentativa 3 ou menos?"}
-    RT -- "sim" --> WT["Espera 2s, 4s, 8s e processa de novo"]
+    RB --> RT{"Já usou os 3 retries?"}
+    RT -- "não" --> WT["Espera 2s, 4s ou 8s (cresce a cada retry) e processa de novo"]
     WT --> A
-    RT -- "não" --> DLQ
+    RT -- "sim" --> DLQ
 ```
 
 Só o erro técnico é reprocessado. Mensagem malformada e chave inexistente vão direto para a DLQ, porque tentar de novo não resolveria.
@@ -227,11 +227,13 @@ Uma linha do outbox só existe enquanto a solicitação está pendente: ela é a
 - Relay agendado do outbox mais publicação imediata após o commit. Os dois usam a mesma função e `FOR UPDATE SKIP LOCKED`.
 - A entrega é at-least-once. Uma queda entre a publicação e o commit pode publicar a solicitação duas vezes, então o provedor deve deduplicar pelo `messageId` da solicitação.
 - Relay: tick de 1s a 2s, backoff exponencial com teto de 60s e sem limite de tentativas.
-- Consumer: 3 tentativas dentro do worker (2s, 4s, 8s) e depois DLQ. Não há tabela de log de erros, a DLQ guarda a mensagem.
+- Consumer: 3 retries dentro do worker, com esperas de 2s, 4s e 8s (até 4 execuções no total), e depois DLQ. Não há tabela de log de erros, a DLQ guarda a mensagem.
+- O `messageId` do resultado é derivado do `messageId` da solicitação. Uma solicitação entregue duas vezes gera o mesmo resultado, que `processed_messages` descarta.
+- Horários em UTC (`timestamptz` no banco, ISO-8601 na API).
 - Criação duplicada (mesma chave de acesso): `200` com a nota existente. A garantia vem da constraint `UNIQUE`, e não de um `SELECT` prévio.
-- Chave de acesso com formato inválido: `400`.
+- Chave de acesso: passa por `trim` e precisa ter exatamente 44 dígitos. Fora disso, `400`.
 - Idempotência dos resultados: `processed_messages` gravada na mesma transação do update, mais a guarda de estado final.
-- Validação do resultado: CNPJ válido (dígitos verificadores) e valor não negativo. Se falhar, a nota é rejeitada.
+- Validação do resultado: CNPJ válido e valor não negativo. O CNPJ pode ser alfanumérico (14 caracteres, sem máscara, 12 primeiros em `A-Z` ou dígitos e 2 dígitos verificadores). Se falhar, a nota é rejeitada.
 
 ## 9. Limitações conhecidas
 
