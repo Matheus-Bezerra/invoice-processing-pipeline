@@ -193,7 +193,7 @@ erDiagram
         uuid id PK
         char44 access_key UK
         string status "IN_ANALYSIS, APPROVED ou REJECTED"
-        string issuer_cnpj "nullable"
+        string cnpj "nullable"
         decimal amount "nullable"
         date issue_date "nullable"
         boolean cancelled "nullable"
