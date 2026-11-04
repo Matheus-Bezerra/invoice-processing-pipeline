@@ -2,7 +2,7 @@
 
 Este documento é o contrato para a implementação e para os testes. O desenho do fluxo está em [flow.md](flow.md). Regras de negócio e decisões estão no [DESAFIO.md](../DESAFIO.md).
 
-Convenções: texto em português, identificadores técnicos (classes, campos, estados, filas, rotas) em inglês. Mensagens voltadas a pessoas (motivos de rejeição, erros da API e logs) em português. Horários em UTC, no formato ISO-8601.
+Convenções: texto em português, identificadores técnicos (classes, campos, estados, filas, rotas) em inglês. Toda mensagem voltada a pessoas, de sucesso ou de erro, em português: motivos de rejeição, erros e validações da API, textos do Swagger (inclusive as descrições das respostas de sucesso) e logs. Horários em UTC, no formato ISO-8601.
 
 ## 1. Escopo
 
@@ -298,8 +298,10 @@ Cenário T7: resultado duplicado não repete a atualização
 Usa Testcontainers (RabbitMQ e PostgreSQL) e cobre publicação, consumo e reentrega.
 
 - **Publicação e consumo:** o `POST` grava a nota, a solicitação chega à fila, o teste (no papel de provedor) publica o resultado e a nota é aprovada.
-- **Reentrega provocada pelo broker:** um consumidor de teste, com *ack* manual, recebe o resultado e fecha o canal **sem confirmar**. O RabbitMQ reentrega a mensagem com `redelivered = true`. Em seguida o consumer real processa as duas entregas, e a segunda é descartada por `processed_messages` sem alterar a nota.
-- Chamar a função de processamento duas vezes **não** conta como demonstração de reentrega. O mecanismo exato da parte com o consumer real é definido na fatia 7.
+- **Reentrega provocada pelo broker:** um consumidor de teste, com *ack* manual, recebe o resultado e fecha o canal **sem confirmar**. O RabbitMQ reentrega a mensagem com `redelivered = true`, e o teste confere a flag e a segunda entrega.
+- Chamar a função de processamento duas vezes **não** conta como demonstração de reentrega. Por isso a reentrega vem do broker, como acima.
+- **Reentrega no consumer real:** um interceptador só de testes, posicionado **fora** do retry do consumer, deixa o consumer real processar e gravar normalmente na primeira entrega e, depois do commit, lança uma exceção que faz o broker recolocar a mensagem na fila (`nack` com requeue). O broker reentrega com `redelivered = true`, e o teste confere que a nota foi atualizada uma única vez (mesmo `approvedAt` depois da segunda entrega), que há uma linha em `processed_messages` e que a DLQ está vazia. Não exige mudança no código de produção além de a configuração do container do listener ser declarada explicitamente em `config/messaging`.
+- Se esse mecanismo se mostrar inviável, o plano de reserva é manter só o teste com o consumidor de teste, descrito acima. A garantia de não repetir a atualização continua coberta no nível de serviço (T7, A).
 
 ## 8. Observabilidade e execução local
 
@@ -326,16 +328,20 @@ Segue a skill `spring-hexagonal-architecture`, pacote base `dev.matheus.invoice`
 - `domain`: `Invoice` (com `approve` e `reject` como comportamento), `InvoiceStatus`, `AccessKey` e `Cnpj` como value objects, e as exceções de negócio.
 - `application/service`: criação e consulta de notas, relay do outbox, processamento do resultado.
 - `application/port/out`: repositório de notas, outbox, publicação da solicitação, registro de mensagens processadas e relógio.
-- `adapter/in/web`: controller, DTOs e tratamento de erros.
+- `adapter/in/web`: `api` (interface `InvoiceApi` com as anotações Swagger/OpenAPI), `controller` (implementa a interface), `dto` e tratamento de erros.
 - `adapter/in/messaging`: consumer do resultado.
 - `adapter/in/scheduler`: o job do relay.
 - `adapter/out/persistence`, `adapter/out/messaging`: JPA e publisher RabbitMQ.
 
 Versões: Java 25 LTS, Maven, Spring Boot na versão estável da linha indicada pela skill (confirmada na documentação oficial antes de gerar o `pom.xml`).
 
+Ferramentas: Lombok, Flyway, Testcontainers e Swagger/OpenAPI (springdoc), com a Swagger UI disponível na `api` para testar os endpoints. A compatibilidade do springdoc com a versão do Spring Boot é conferida antes de gerar o `pom.xml`.
+
+Da skill, **não** entram `port/in`, MapStruct, eventos de domínio (`pullEvents`), envelope completo, Micrometer, OpenTelemetry, Pact nem `domain/service`. O pacote `shared` só é criado quando houver algo realmente compartilhado. `Invoice` é separada da entidade JPA, com mapper manual. `outbox` e `processed_messages` não têm modelo de domínio. As decisões estão consolidadas no `CLAUDE.md`.
+
 ## 10. Plano de implementação
 
-Fatias verticais. Cada uma começa pelos cenários correspondentes escritos como testes e termina com eles passando.
+Fatias verticais. Cada uma começa pelos cenários correspondentes escritos como testes e termina com eles passando. O acompanhamento item a item está em [checklist.md](checklist.md).
 
 | Fatia | Entrega | Cenários |
 |---|---|---|
