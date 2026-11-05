@@ -1,0 +1,9 @@
+# O worker não expõe API de negócio: o servidor web existe só para o Actuator (health check).
+server:
+  port: 8081
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
