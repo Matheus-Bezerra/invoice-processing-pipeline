@@ -6,14 +6,14 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 ## Fatia 1 — Projeto e infraestrutura
 
-- [ ] Versões confirmadas na documentação oficial (Spring Boot, springdoc, Testcontainers)
-- [ ] Projeto Maven com Java 25, Maven Wrapper, Lombok, Flyway, Actuator e springdoc
-- [ ] Migrações Flyway: `invoices`, `outbox`, `processed_messages`
-- [ ] `docker-compose.yml` com `postgres`, `rabbitmq`, `api` e `worker`, com healthchecks
-- [ ] `.env.example` com valores locais de exemplo (sem segredos)
-- [ ] `api` e `worker` sobem com os perfis certos e o health check responde
-- [ ] `docs/ai-usage.md` criado
-- [ ] Seção "Comandos" do `CLAUDE.md` preenchida
+- [x] Versões confirmadas na documentação oficial (Spring Boot, springdoc, Testcontainers)
+- [x] Projeto Maven com Java 25, Maven Wrapper, Lombok, Flyway, Actuator e springdoc
+- [x] Migrações Flyway: `invoices`, `outbox`, `processed_messages`
+- [x] `docker-compose.yml` com `postgres`, `rabbitmq`, `api` e `worker`, com healthchecks
+- [x] `.env.example` com valores locais de exemplo (sem segredos)
+- [x] `api` e `worker` sobem com os perfis certos e o health check responde
+- [x] `docs/ai-usage.md` criado
+- [x] Seção "Comandos" do `CLAUDE.md` preenchida
 
 ## Fatia 2 — Domínio
 

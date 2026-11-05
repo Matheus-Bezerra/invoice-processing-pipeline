@@ -92,6 +92,28 @@ Para `outbox` e `processed_messages` **não** crie modelo de domínio: use adapt
 - **Simulador** (`provider-simulator/`, projeto separado) sempre devolve resultado completo e aprovável. Rejeições são cobertas só nos testes automatizados.
 - `api` e `worker` são o mesmo código e a mesma imagem, com perfis `api` e `worker` do Spring.
 
+## Comandos
+
+Requisitos: JDK 25 e Docker em execução (os testes usam Testcontainers).
+
+```bash
+./mvnw verify                      # compila e roda os testes (Testcontainers sobe Postgres e RabbitMQ)
+./mvnw test                        # só os testes
+cp .env.example .env               # uma vez; valores locais de exemplo
+docker compose up --build          # postgres, rabbitmq, api (8080) e worker (8081)
+docker compose down                # derruba tudo
+```
+
+Rodar localmente fora do Compose (com `postgres` e `rabbitmq` do Compose no ar):
+
+```bash
+docker compose up -d postgres rabbitmq
+SPRING_PROFILES_ACTIVE=api ./mvnw spring-boot:run      # API em :8080, Swagger em /swagger-ui.html
+SPRING_PROFILES_ACTIVE=worker ./mvnw spring-boot:run   # worker, health em :8081/actuator/health
+```
+
+Health check: `curl localhost:8080/actuator/health` (api) e `curl localhost:8081/actuator/health` (worker).
+
 ## Como trabalhar
 
 - Siga o plano em fatias da spec (seção 10), **uma fatia por vez**, sem adiantar a próxima.
