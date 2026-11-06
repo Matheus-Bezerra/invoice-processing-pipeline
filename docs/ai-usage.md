@@ -75,3 +75,42 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 
 - Os testes de nível A de T3, T4 e T5 (fatia 5).
 - A regra do CNPJ foi conferida em fonte secundária e no FAQ da Receita; vale revisar o algoritmo contra o PDF oficial de cálculo antes da entrega.
+
+## Fatia 3 — API e outbox
+
+### Fontes consultadas
+
+| Item | Fonte |
+|---|---|
+| Pacotes de teste do Boot 4 (`org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest`) e Jackson 3 (`tools.jackson.databind.json.JsonMapper`) | Conferidos direto nos jars do Maven local (`spring-boot-webmvc-test`, `spring-boot-jackson`) |
+| `@MockitoBean` | `org.springframework.test.context.bean.override.mockito` (Spring Framework 7) |
+
+### O que a IA gerou
+
+- Testes primeiro: `InvoiceRestoreTest` (D), `InvoiceServiceTest` (A: T2 e outbox), `InvoiceControllerTest` (W: T1, T10, E6, E7, GETs) e `InvoiceServicePersistenceTest` (P: T6, E7, atomicidade). Os testes foram escritos antes do código de produção; a compilação falhou até as classes existirem.
+- `Invoice.restore`, `InvoiceNotFoundException`, ports (`InvoiceRepository`, `OutboxPort`, `ClockPort`), `InvoiceService`, `CreateInvoiceResult`, `EnrichmentRequestMessage`, adapters de persistência (JPA com `INSERT ... ON CONFLICT DO NOTHING` e `JdbcClient` para o outbox), `SystemClockAdapter`, `InvoiceApi`, `InvoiceController`, DTOs e `ApiExceptionHandler`.
+
+### Decisões tomadas com o autor
+
+- Um único `InvoiceService` (criação e consultas), sem `OutboxMessage`: o `OutboxPort` recebe os valores soltos. Fica só o record do envelope, que a fatia 4 reaproveita.
+- Testes W com `@WebMvcTest` e service mockado; a persistência real fica nos testes P.
+- `Invoice` via JPA e outbox via `JdbcClient`.
+- O controller converte a chave com `AccessKey.of` (trim + 44 dígitos) e o service recebe o value object. Assim T10 e E6 são testados de verdade no nível W e a validação fica num único lugar (sem Bean Validation duplicada).
+
+### O que foi revisado ou corrigido
+
+- O `sed -i` do macOS exige `-i ''`; a primeira tentativa falhou no meio de uma cadeia de comandos e os arquivos tiveram de ser regravados.
+- `TestcontainersConfiguration` virou `public` para ser importada pelo teste de persistência em outro pacote.
+- O relógio trunca para microssegundos, porque o PostgreSQL guarda microssegundos e o `createdAt` lido seria diferente do gravado.
+- O primeiro `docker compose up --build -d` deixou o container `api` antigo no ar (a fatia 1, sem as rotas) e o `curl` devolveu 404 em tudo; `docker compose up -d --force-recreate api worker` resolveu. Os testes automatizados não pegariam isso.
+
+### Verificação executada
+
+- `./mvnw verify`: 81 testes, 0 falhas (29 novos).
+- `grep`: `domain` não importa Spring, JPA, AMQP nem Jackson; `application` não importa `adapter`, `RabbitTemplate` nem JPA.
+- `docker compose up` e `curl`: `POST` novo (201 + `Location`), repetido (200, mesmo `id`), chave inválida (400 `problem+json`), `GET` por chave, `GET` 404 e `GET` com id inválido (400). A Swagger UI abre na `api` e não existe no `worker`. O `psql` mostrou 1 nota e 1 linha no outbox (`invoice.enrichment.requested`, `attempts = 0`). O OpenAPI saiu com textos em português, inclusive nas respostas de sucesso.
+
+### O que falta verificar
+
+- Erros genéricos do framework que não têm handler próprio (405, 415, 406) saem em `problem+json`, mas com `title` e `detail` padrão do Spring, em inglês. Só os erros previstos na spec foram traduzidos.
+- A linha do outbox só é gravada; a publicação (imediata e pelo relay) é da fatia 4.

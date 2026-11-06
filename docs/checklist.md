@@ -29,16 +29,16 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 ## Fatia 3 — API e outbox
 
-- [ ] `POST /invoices` grava a nota e a linha do outbox na mesma transação
-- [ ] `GET /invoices/{id}` e `GET /invoices?accessKey=`
-- [ ] Interface `InvoiceApi` com Swagger em português e Swagger UI funcionando
-- [ ] Erros em `problem+json`, com `title` e `detail` em português
-- [ ] **T1** (W): chave válida cria a nota em `IN_ANALYSIS`, sem `approvedAt`
-- [ ] **T2** (A): a nota continua `IN_ANALYSIS` enquanto não houver resultado
-- [ ] **T6** (P, W): duas requisições com a mesma chave, inclusive simultâneas, mantêm uma só nota
-- [ ] **T10** (W): chave com formato inválido recebe `400`
-- [ ] **E6** (W): chave com espaços nas pontas é aceita como a mesma chave
-- [ ] **E7** (W, P): chave repetida devolve `200` com o mesmo `id` e não cria outra linha no outbox
+- [x] `POST /invoices` grava a nota e a linha do outbox na mesma transação
+- [x] `GET /invoices/{id}` e `GET /invoices?accessKey=`
+- [x] Interface `InvoiceApi` com Swagger em português e Swagger UI funcionando
+- [x] Erros em `problem+json`, com `title` e `detail` em português
+- [x] **T1** (W): chave válida cria a nota em `IN_ANALYSIS`, sem `approvedAt`
+- [x] **T2** (A): a nota continua `IN_ANALYSIS` enquanto não houver resultado
+- [x] **T6** (P, W): duas requisições com a mesma chave, inclusive simultâneas, mantêm uma só nota
+- [x] **T10** (W): chave com formato inválido recebe `400`
+- [x] **E6** (W): chave com espaços nas pontas é aceita como a mesma chave
+- [x] **E7** (W, P): chave repetida devolve `200` com o mesmo `id` e não cria outra linha no outbox
 
 ## Fatia 4 — Relay e publisher
 
