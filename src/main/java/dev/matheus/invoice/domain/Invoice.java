@@ -42,6 +42,22 @@ public class Invoice {
         return new Invoice(UUID.randomUUID(), accessKey, now);
     }
 
+    /** Reconstitui uma nota já persistida, sem aplicar regras. Uso exclusivo dos adapters de persistência. */
+    public static Invoice restore(UUID id, AccessKey accessKey, InvoiceStatus status, String cnpj, BigDecimal amount,
+            LocalDate issueDate, Boolean cancelled, Instant approvedAt, String rejectionReason, Instant createdAt,
+            Instant updatedAt) {
+        Invoice invoice = new Invoice(id, accessKey, createdAt);
+        invoice.status = status;
+        invoice.cnpj = cnpj;
+        invoice.amount = amount;
+        invoice.issueDate = issueDate;
+        invoice.cancelled = cancelled;
+        invoice.approvedAt = approvedAt;
+        invoice.rejectionReason = rejectionReason;
+        invoice.updatedAt = updatedAt;
+        return invoice;
+    }
+
     /**
      * Aplica o resultado do provedor. Ordem das regras: cancelada, incompleta, inválida, aprova.
      * Nota já finalizada não é alterada.
