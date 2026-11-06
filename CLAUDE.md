@@ -128,5 +128,5 @@ Health check: `curl localhost:8080/actuator/health` (api) e `curl localhost:8081
 
 ## Registro de uso de IA
 
-O desafio exige registrar o que a IA gerou e o que foi revisado ou corrigido. Mantenha `docs/ai-usage.md`, criado na fatia 1, e atualize ao fim de cada fatia com: o que foi gerado, o que foi revisado ou corrigido pelo autor e o que ficou para verificar. O resumo vai para o README na fatia 8.
+O desafio exige registrar o que a IA gerou e o que foi revisado ou corrigido. Mantenha `docs/ai-usage.md`, criado na fatia 1, e atualize ao fim de cada fatia com: o que foi gerado, o que foi revisado ou corrigido pelo autor e o que ficou para verificar. O resumo vai para o README na fatia 9.
 

@@ -78,7 +78,17 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 - [ ] **T9** em nível I: falha de publicação seguida de recuperação
 - [ ] Explicação de como a reentrega foi provocada anotada para o README
 
-## Fatia 8 — README
+## Fatia 8 — Validação e revisão
+
+Só verificação: nenhuma funcionalidade nova. Os prompts dos agentes serão definidos junto com o autor quando a fatia começar.
+
+- [ ] Agente de revisão de segurança (por exemplo, segredos, entradas, SQL, logs com dados sensíveis, imagens e Compose)
+- [ ] Agente de revisão de boas práticas de código (arquitetura hexagonal, convenções do `CLAUDE.md`, código sem uso)
+- [ ] Revisão de aderência à spec (contratos, regras e cenários T1–T10 e E1–E10 cobertos)
+- [ ] Achados triados: corrigidos ou registrados como limitação
+- [ ] Build e todos os testes passando depois das correções
+
+## Fatia 9 — README
 
 - [ ] Como subir o ambiente
 - [ ] Como executar os testes

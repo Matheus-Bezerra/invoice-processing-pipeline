@@ -352,7 +352,8 @@ Fatias verticais. Cada uma começa pelos cenários correspondentes escritos como
 | 5 | Consumer do resultado, idempotência, retry e DLQ | T7, T8, E3, E4, E5 |
 | 6 | Simulador do provedor | — |
 | 7 | Teste de integração com o broker real, incluindo a reentrega | T1, T3, T7, T8, T9 em nível I |
-| 8 | README em português, com o registro de uso de IA | — |
+| 8 | Validação e revisão: agentes de segurança e de boas práticas, e aderência à spec | — |
+| 9 | README em português, com o registro de uso de IA | — |
 
 ## 11. Fora do escopo
 
