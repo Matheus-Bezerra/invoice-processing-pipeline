@@ -39,3 +39,39 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 ### O que falta verificar
 
 - Nada pendente nesta fatia. Os índices e constraints das migrações serão exercitados pelos testes das fatias 3 a 5.
+
+## Fatia 2 — Domínio
+
+### Fontes consultadas
+
+| Item | Fonte |
+|---|---|
+| Cálculo do dígito verificador do CNPJ alfanumérico (módulo 11, valor = ASCII − 48, pesos 2 a 9 da direita para a esquerda; exemplo `12ABC34501DE35`) | FAQ do CNPJ alfanumérico da Receita Federal (gov.br), conferido por busca na web |
+| `@Nested`, `@ParameterizedTest`, `@NullAndEmptySource` | Documentação do JUnit (Context7) |
+
+### O que a IA gerou
+
+- Testes primeiro (`AccessKeyTest`, `CnpjTest`, `InvoiceTest`), confirmados vermelhos (erro de compilação) antes da implementação.
+- `InvoiceStatus`, `ProcessingOutcome`, `AccessKey`, `Cnpj`, `EnrichmentData`, `Invoice` e as exceções `InvalidAccessKeyException` e `InvalidCnpjException`.
+
+### Decisões tomadas com o autor
+
+- A decisão (cancelada, incompleta, inválida, aprova) fica em `Invoice.applyEnrichment`; `approve` e `reject` são privados e só mudam o estado.
+- Nota finalizada devolve `ProcessingOutcome.IGNORED_ALREADY_FINAL` em vez de lançar exceção; o service da fatia 5 faz `ack` + log.
+- Os testes de nível A de T3, T4 e T5 ficam para a fatia 5, quando o service de processamento existir.
+- `EnrichmentData.cnpj` é `String` e `Invoice.cnpj` também, porque um CNPJ inválido é gravado na nota rejeitada.
+
+### O que foi revisado ou corrigido
+
+- Um caso de teste "CNPJ com todos os dígitos iguais é inválido" foi removido: a spec não define essa regra e o cálculo oficial aceita `00000000000000`. Não inventei regra além da spec.
+- O exemplo da spec `12ABC34501DE35` foi validado pelo algoritmo e confere com o exemplo da Receita.
+
+### Verificação executada
+
+- `./mvnw verify`: 48 testes, 0 falhas (inclui o smoke da fatia 1).
+- `grep` confirmou que o pacote `domain` não importa Spring, JPA nem AMQP.
+
+### O que falta verificar
+
+- Os testes de nível A de T3, T4 e T5 (fatia 5).
+- A regra do CNPJ foi conferida em fonte secundária e no FAQ da Receita; vale revisar o algoritmo contra o PDF oficial de cálculo antes da entrega.

@@ -17,15 +17,15 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 ## Fatia 2 — Domínio
 
-- [ ] `AccessKey` (44 dígitos) e `Cnpj` (alfanumérico, dígitos verificadores conferidos na documentação oficial)
-- [ ] `Invoice` com `approve` e `reject`, sem setters públicos
-- [ ] **T3** (D, A): resultado completo e não cancelado aprova, com dados e `approvedAt`
-- [ ] **T4** (D, A): resultado cancelado rejeita, com motivo e sem `approvedAt`
-- [ ] **T5** (D, A): falta de `cnpj`, `amount` ou `issueDate` rejeita como incompleta (um teste por campo)
-- [ ] **E1** (D): `cancelled` ausente rejeita como incompleta
-- [ ] **E2** (D): CNPJ inválido ou `amount` negativo rejeita como dados inválidos
-- [ ] **E10** (D): cancelada e incompleta ao mesmo tempo gera o motivo de cancelamento
-- [ ] Nota finalizada não muda com um novo resultado
+- [x] `AccessKey` (44 dígitos) e `Cnpj` (alfanumérico, dígitos verificadores conferidos na documentação oficial)
+- [x] `Invoice` com `approve` e `reject`, sem setters públicos
+- [x] **T3** (D; nível A na fatia 5): resultado completo e não cancelado aprova, com dados e `approvedAt`
+- [x] **T4** (D; nível A na fatia 5): resultado cancelado rejeita, com motivo e sem `approvedAt`
+- [x] **T5** (D; nível A na fatia 5): falta de `cnpj`, `amount` ou `issueDate` rejeita como incompleta (um teste por campo)
+- [x] **E1** (D): `cancelled` ausente rejeita como incompleta
+- [x] **E2** (D): CNPJ inválido ou `amount` negativo rejeita como dados inválidos
+- [x] **E10** (D): cancelada e incompleta ao mesmo tempo gera o motivo de cancelamento
+- [x] Nota finalizada não muda com um novo resultado
 
 ## Fatia 3 — API e outbox
 
