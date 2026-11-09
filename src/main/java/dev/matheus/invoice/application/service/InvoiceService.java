@@ -2,9 +2,13 @@ package dev.matheus.invoice.application.service;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import dev.matheus.invoice.application.message.EnrichmentRequestMessage;
 import dev.matheus.invoice.application.port.out.ClockPort;
@@ -26,6 +30,8 @@ public class InvoiceService {
     private final OutboxPort outbox;
     private final ClockPort clock;
     private final JsonMapper jsonMapper;
+    private final OutboxPublisherService outboxPublisher;
+    private final ExecutorService immediatePublishExecutor;
 
     /**
      * Cadastra a nota e a solicitação do outbox na mesma transação. A unicidade vem do banco; se a chave já
@@ -35,7 +41,7 @@ public class InvoiceService {
     public CreateInvoiceResult create(AccessKey accessKey) {
         Instant now = clock.now();
         Invoice invoice = Invoice.create(accessKey, now);
-        
+
         if (!invoices.insertIfAbsent(invoice)) {
             Invoice existing = invoices.findByAccessKey(accessKey).orElseThrow();
             log.info("Chave já cadastrada, devolvendo a nota existente: invoiceId={}", existing.id());
@@ -47,9 +53,42 @@ public class InvoiceService {
                 EnrichmentRequestMessage.of(messageId, invoice.id(), accessKey.value(), now));
 
         outbox.enqueue(messageId, invoice.id(), accessKey, payload, now);
-        log.info("Nota cadastrada em análise: invoiceId={}, messageId={}", invoice.id(), messageId);
+        log.info("Nota cadastrada em análise: correlationId={}, messageId={}", invoice.id(), messageId);
+        publishAfterCommit(messageId, invoice.id());
 
         return new CreateInvoiceResult(invoice, true);
+    }
+
+    /**
+     * Publicação imediata, só depois do commit real da transação que gravou a nota e o outbox. Se a transação
+     * fizer rollback, nada é publicado. A publicação roda em outra thread, então o request não espera o broker.
+     * Qualquer falha (ou fila do executor cheia) só vai para o log: a linha continua no outbox e o relay do
+     * worker publica depois.
+     */
+    private void publishAfterCommit(UUID messageId, UUID invoiceId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    immediatePublishExecutor.execute(() -> publishQuietly(messageId, invoiceId));
+                } catch (RejectedExecutionException e) {
+                    log.warn("Publicação imediata descartada, o relay vai publicar: correlationId={}, messageId={}",
+                            invoiceId, messageId);
+                }
+            }
+        });
+    }
+
+    private void publishQuietly(UUID messageId, UUID invoiceId) {
+        try {
+            outboxPublisher.publish(messageId);
+        } catch (RuntimeException e) {
+            log.warn("Publicação imediata falhou, o relay vai tentar de novo: correlationId={}, messageId={}, erro={}",
+                    invoiceId, messageId, e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

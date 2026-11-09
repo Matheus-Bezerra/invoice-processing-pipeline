@@ -3,6 +3,8 @@ package dev.matheus.invoice.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -10,13 +12,19 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import dev.matheus.invoice.application.port.out.ClockPort;
 import dev.matheus.invoice.application.port.out.InvoiceRepository;
@@ -40,13 +48,17 @@ class InvoiceServiceTest {
     private OutboxPort outbox;
     @Mock
     private ClockPort clock;
+    @Mock
+    private OutboxPublisherService outboxPublisher;
+    @Mock
+    private ExecutorService executor;
 
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
     private InvoiceService service;
 
     @BeforeEach
     void setUp() {
-        service = new InvoiceService(invoices, outbox, clock, jsonMapper);
+        service = new InvoiceService(invoices, outbox, clock, jsonMapper, outboxPublisher, executor);
     }
 
     @Test
@@ -97,6 +109,83 @@ class InvoiceServiceTest {
         assertThat(result.created()).isFalse();
         assertThat(result.invoice()).isSameAs(existing);
         verifyNoInteractions(outbox);
+    }
+
+    @Nested
+    class ImmediatePublication {
+
+        @BeforeEach
+        void startSynchronization() {
+            TransactionSynchronizationManager.initSynchronization();
+        }
+
+        @AfterEach
+        void clearSynchronization() {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        private UUID createAndCaptureMessageId() {
+            when(clock.now()).thenReturn(NOW);
+            when(invoices.insertIfAbsent(any())).thenReturn(true);
+            service.create(KEY);
+            ArgumentCaptor<UUID> messageId = ArgumentCaptor.forClass(UUID.class);
+            verify(outbox).enqueue(messageId.capture(), any(), any(), any(), any());
+            return messageId.getValue();
+        }
+
+        private void commit() {
+            TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+        }
+
+        private Runnable submittedTask() {
+            ArgumentCaptor<Runnable> task = ArgumentCaptor.forClass(Runnable.class);
+            verify(executor).execute(task.capture());
+            return task.getValue();
+        }
+
+        @Test
+        void newInvoiceHandsThePublicationToTheExecutorOnlyAfterTheCommit() {
+            UUID messageId = createAndCaptureMessageId();
+
+            verify(executor, never()).execute(any());
+            commit();
+
+            verify(outboxPublisher, never()).publish(any()); // ainda não rodou: o request não espera o broker
+            submittedTask().run();
+            verify(outboxPublisher).publish(messageId);
+        }
+
+        @Test
+        void publicationFailureInTheBackgroundDoesNotPropagate() {
+            UUID messageId = createAndCaptureMessageId();
+            doThrow(new IllegalStateException("broker fora do ar")).when(outboxPublisher).publish(messageId);
+            commit();
+
+            submittedTask().run();
+
+            verify(outboxPublisher).publish(messageId);
+        }
+
+        @Test
+        void fullExecutorQueueDoesNotFailTheRequest() {
+            createAndCaptureMessageId();
+            doThrow(new RejectedExecutionException("fila cheia")).when(executor).execute(any());
+
+            commit();
+
+            verifyNoInteractions(outboxPublisher);
+        }
+
+        @Test
+        void repeatedKeyRegistersNoPublication() {
+            when(clock.now()).thenReturn(NOW);
+            when(invoices.insertIfAbsent(any())).thenReturn(false);
+            when(invoices.findByAccessKey(KEY)).thenReturn(Optional.of(Invoice.create(KEY, NOW)));
+
+            service.create(KEY);
+
+            assertThat(TransactionSynchronizationManager.getSynchronizations()).isEmpty();
+        }
     }
 
     @Test

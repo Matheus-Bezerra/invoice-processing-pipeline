@@ -1,6 +1,8 @@
 package dev.matheus.invoice.adapter.out.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,9 +18,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import dev.matheus.invoice.TestcontainersConfiguration;
+import dev.matheus.invoice.application.port.out.EnrichmentRequestPublisher;
 import dev.matheus.invoice.application.service.CreateInvoiceResult;
 import dev.matheus.invoice.application.service.InvoiceService;
 import dev.matheus.invoice.domain.AccessKey;
@@ -38,8 +42,13 @@ class InvoiceServicePersistenceTest {
     @Autowired
     private TransactionTemplate transactionTemplate;
 
+    /** Broker indisponível: a linha do outbox continua lá depois do commit, e estes testes podem contá-la. */
+    @MockitoBean
+    private EnrichmentRequestPublisher publisher;
+
     @BeforeEach
     void cleanTables() {
+        doThrow(new IllegalStateException("broker indisponível no teste")).when(publisher).publish(any(), any(), any());
         jdbc.update("DELETE FROM outbox");
         jdbc.update("DELETE FROM invoices");
     }

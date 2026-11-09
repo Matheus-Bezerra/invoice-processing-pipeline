@@ -19,6 +19,22 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:invoice}
     password: ${RABBITMQ_PASSWORD:invoice_dev}
+    # O padrão é 60s; com o broker fora, a publicação imediata seguraria o POST por esse tempo.
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:2s}
+    # Publisher confirm correlacionado + returns: a linha do outbox só é apagada com ack e sem devolução.
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+invoice:
+  outbox:
+    relay:
+      tick: ${OUTBOX_RELAY_TICK:5s}
+      batch-size: ${OUTBOX_RELAY_BATCH_SIZE:50}
+      max-backoff: ${OUTBOX_RELAY_MAX_BACKOFF:60s}
+  messaging:
+    confirm-timeout: ${PUBLISHER_CONFIRM_TIMEOUT:5s}
 
 management:
   endpoints:
