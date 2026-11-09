@@ -322,6 +322,7 @@ Parâmetros configuráveis, com os padrões:
 | Teto do backoff do relay | 60s |
 | Timeout do publisher confirm | 5s |
 | Timeout de conexão com o RabbitMQ | 2s |
+| Espera por uma conexão do pool do banco | 5s |
 | Retries do consumer | 3 (esperas de 2s, 4s e 8s) |
 | Atraso do simulador | 300 ms |
 

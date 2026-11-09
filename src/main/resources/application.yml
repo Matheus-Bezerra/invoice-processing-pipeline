@@ -5,6 +5,10 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/invoice}
     username: ${DB_USER:invoice}
     password: ${DB_PASSWORD:invoice_dev}
+    hikari:
+      # Espera máxima para pegar uma conexão do pool (não limita a consulta). O padrão é 30s; com o banco fora,
+      # cada tentativa do consumer de resultado perderia 30s antes do retry.
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:5000}
   jpa:
     open-in-view: false
     hibernate:
@@ -35,6 +39,12 @@ invoice:
       max-backoff: ${OUTBOX_RELAY_MAX_BACKOFF:60s}
   messaging:
     confirm-timeout: ${PUBLISHER_CONFIRM_TIMEOUT:5s}
+    # Consumer de resultado (worker): erro técnico faz 3 retries com esperas de 2s, 4s e 8s e depois vai para a DLQ.
+    result-retry:
+      max-retries: ${RESULT_RETRY_MAX_RETRIES:3}
+      initial-interval: ${RESULT_RETRY_INITIAL_INTERVAL:2s}
+      multiplier: ${RESULT_RETRY_MULTIPLIER:2.0}
+      max-interval: ${RESULT_RETRY_MAX_INTERVAL:8s}
 
 management:
   endpoints:
@@ -49,9 +59,3 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
-    # Consumer de resultado (worker): erro técnico faz 3 retries com esperas de 2s, 4s e 8s e depois vai para a DLQ.
-    result-retry:
-      max-retries: ${RESULT_RETRY_MAX_RETRIES:3}
-      initial-interval: ${RESULT_RETRY_INITIAL_INTERVAL:2s}
-      multiplier: ${RESULT_RETRY_MULTIPLIER:2.0}
-      max-interval: ${RESULT_RETRY_MAX_INTERVAL:8s}
