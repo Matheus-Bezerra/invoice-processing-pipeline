@@ -2,8 +2,8 @@
 
 Este documento descreve o funcionamento do serviço de ponta a ponta. Ele é a referência para a implementação e será linkado no README.
 
-Serviços (Docker Compose): `api`, `worker`, `provider-simulator`, `rabbitmq` (broker) e `postgres`.
-`api` e `worker` compartilham o mesmo código e a mesma imagem, e sobem com perfis diferentes do Spring.
+Serviços (Docker Compose): `api`, `worker`, `invoice-webhook`, `provider-simulator`, `rabbitmq` (broker) e `postgres`.
+`api`, `worker` e `invoice-webhook` compartilham o mesmo código e a mesma imagem, e sobem com perfis diferentes do Spring (`api`, `worker` e `webhook`). O `provider-simulator` é um projeto à parte, com imagem própria, e fala só HTTP.
 
 ## 1. Visão geral
 
@@ -18,17 +18,23 @@ flowchart LR
 
     subgraph worker_svc["worker (perfil worker)"]
         relay["Relay do outbox (tick a cada 5s)"]
+        reqconsumer["Consumer de solicitação (chama o provedor)"]
         consumer["Consumer de resultado"]
+    end
+
+    subgraph webhook_svc["invoice-webhook (perfil webhook, sem banco)"]
+        webhook["POST /webhooks/enrichment-results (valida HMAC e payload)"]
     end
 
     subgraph broker["rabbitmq (broker)"]
         reqq[["invoice.enrichment.request"]]
+        reqdlq[["invoice.enrichment.request.dlq"]]
         resq[["invoice.enrichment.result"]]
         dlq[["invoice.enrichment.result.dlq"]]
     end
 
     db[("postgres: invoices, outbox, processed_messages")]
-    provider["provider-simulator"]
+    provider["provider-simulator (provedor externo fake, só HTTP)"]
 
     client -->|"HTTP"| controller
     controller -->|"uma transação: nota + linha do outbox"| db
@@ -36,8 +42,11 @@ flowchart LR
     immediate -->|"publica a solicitação"| reqq
     relay -->|"reserva linhas pendentes (SKIP LOCKED)"| db
     relay -->|"publica a solicitação"| reqq
-    reqq --> provider
-    provider -->|"publica o resultado"| resq
+    reqq --> reqconsumer
+    reqconsumer -->|"HTTP POST /enrichment-requests, resposta 202"| provider
+    reqconsumer -.->|"malformada, 4xx ou tentativas esgotadas"| reqdlq
+    provider -->|"HTTP POST assinado (X-Signature)"| webhook
+    webhook -->|"publica o resultado (publisher confirm)"| resq
     resq --> consumer
     consumer -->|"uma transação: atualiza a nota + processed_messages"| db
     consumer -.->|"malformada, chave inexistente ou tentativas esgotadas"| dlq
@@ -52,8 +61,9 @@ sequenceDiagram
     participant API as api
     participant DB as PostgreSQL
     participant MQ as RabbitMQ
-    participant P as provider-simulator
     participant W as worker
+    participant P as provider-simulator
+    participant H as invoice-webhook
 
     C->>API: POST /invoices {accessKey}
     API->>API: aplica trim e valida os 44 dígitos
@@ -64,10 +74,17 @@ sequenceDiagram
     API->>DB: DELETE da linha do outbox, COMMIT
     API-->>C: 201 Created (status IN_ANALYSIS, sem approvedAt)
 
-    MQ->>P: entrega a solicitação
-    P->>P: pequeno atraso, monta resultado completo
-    P->>MQ: publica EnrichmentResult (messageId derivado do da solicitação, accessKey, cnpj, amount, issueDate, cancelled=false)
-    MQ->>W: entrega o resultado
+    MQ->>W: entrega a solicitação (consumer de solicitação)
+    W->>P: POST /enrichment-requests (EnrichmentRequest)
+    P-->>W: 202 Accepted (sem dados)
+    W->>MQ: ack
+    P->>P: pequeno atraso, monta resultado completo e assina o corpo (HMAC-SHA256)
+    P->>H: POST /webhooks/enrichment-results (EnrichmentResult, X-Signature)
+    H->>H: confere a assinatura e valida o payload
+    H->>MQ: publica EnrichmentResult (messageId derivado do da solicitação, accessKey, cnpj, amount, issueDate, cancelled=false)
+    MQ-->>H: publisher confirm
+    H-->>P: 202 Accepted
+    MQ->>W: entrega o resultado (consumer de resultado)
     W->>DB: BEGIN, trava a nota, INSERT em processed_messages, aprova, COMMIT
     W->>MQ: ack
 
@@ -76,7 +93,16 @@ sequenceDiagram
 ```
 
 A publicação imediata é disparada no `afterCommit` da transação da nota, em outra thread e numa transação nova, então o `POST` não espera o broker. Se ela falhar, o cliente recebe `201` do mesmo jeito e a nota continua `IN_ANALYSIS`. A linha do outbox permanece para o relay (seção 3).
-O request nunca espera o provedor, e a nota nunca é aprovada durante a criação.
+O request do cliente nunca espera o provedor, e a nota nunca é aprovada durante a criação. A chamada HTTP ao provedor é do `worker`, feita depois e de forma assíncrona.
+
+### 2.1 As duas chamadas HTTP com o provedor
+
+| Chamada | Quem chama | Corpo | Resposta |
+|---|---|---|---|
+| `POST {PROVIDER_BASE_URL}/enrichment-requests` | `worker` | `EnrichmentRequest` | `202` sem dados. `4xx` é erro permanente, `5xx` e timeout são erro técnico |
+| `POST /webhooks/enrichment-results` | `provider-simulator` | `EnrichmentResult`, com `X-Signature: sha256=<hex>` | `202` publicado, `401` assinatura inválida, `400` payload malformado, `503` falha ao publicar |
+
+Os dados da nota (cnpj, valor, data, cancelamento) trafegam **só** no callback. A URL do callback é configuração do provedor e não vai na solicitação.
 
 ## 3. Falha de publicação e recuperação
 
@@ -145,6 +171,40 @@ flowchart TD
 
 Só o erro técnico é reprocessado. Mensagem malformada e chave inexistente vão direto para a DLQ, porque tentar de novo não resolveria.
 Uma nota rejeitada mantém `approvedAt` vazio e grava um `rejectionReason` legível.
+
+### 4.1 Decisão do webhook
+
+```mermaid
+flowchart TD
+    A["POST /webhooks/enrichment-results recebido"] --> B{"X-Signature presente e igual ao HMAC-SHA256 do corpo bruto?"}
+    B -- "não" --> R401["401 Unauthorized, nada é publicado"]
+    B -- "sim" --> C{"JSON válido, com messageId e payload.accessKey, e campos legíveis?"}
+    C -- "não" --> R400["400 Bad Request, nada é publicado"]
+    C -- "sim" --> D["Publica EnrichmentResult em invoice.enrichment, routing key result"]
+    D --> E{"ack do broker e sem devolução?"}
+    E -- "sim" --> R202["202 Accepted"]
+    E -- "não (nack, timeout ou devolvida)" --> R503["503 Service Unavailable, o provedor reenvia"]
+```
+
+O webhook valida só a assinatura e o formato. Cancelamento, CNPJ e valor são decididos pelo consumer de resultado (diagrama acima). Chave inexistente também só aparece lá, porque o webhook não acessa o banco.
+
+### 4.2 Decisão do consumer de solicitação
+
+```mermaid
+flowchart TD
+    A["Solicitação recebida"] --> B{"JSON válido, com messageId, invoiceId e accessKey?"}
+    B -- "não (malformada)" --> DLQ[["DLQ da solicitação, sem retry"]]
+    B -- "sim" --> C["POST /enrichment-requests ao provedor"]
+    C --> D{"Resposta"}
+    D -- "202" --> ACK["ack"]
+    D -- "4xx (erro permanente)" --> DLQ
+    D -- "5xx, timeout ou conexão recusada" --> RT{"Já usou os 3 retries?"}
+    RT -- "não" --> WT["Espera 2s, 4s ou 8s e chama de novo"]
+    WT --> C
+    RT -- "sim" --> DLQ
+```
+
+Como no consumer de resultado, só o erro técnico é reprocessado. O provedor deduplica pelo `messageId`, então um retry depois de um timeout não gera dois resultados.
 
 ## 5. Mensagem duplicada e reentrega
 
@@ -230,7 +290,11 @@ Uma linha do outbox só existe enquanto a solicitação está pendente: ela é a
 - *Publisher confirm* correlacionado com `mandatory`: só apaga a linha com `ack` e sem devolução.
 - Relay: tick de 5s, backoff exponencial (2s, 4s, 8s, 16s, 32s) com teto de 60s e sem limite de tentativas.
 - Consumer: 3 retries dentro do worker, com esperas de 2s, 4s e 8s (até 4 execuções no total), e depois DLQ. Não há tabela de log de erros, a DLQ guarda a mensagem.
-- O `messageId` do resultado é derivado do `messageId` da solicitação. Uma solicitação entregue duas vezes gera o mesmo resultado, que `processed_messages` descarta.
+- O provedor fala HTTP, não fila. O `worker` consome a solicitação e a repassa por `POST /enrichment-requests` (resposta `202` sem dados). O resultado volta por callback no webhook, e os dados da nota trafegam só nele.
+- O `invoice-webhook` é um perfil (`webhook`) da mesma imagem de `api` e `worker`, sem banco. Valida o HMAC-SHA256 do corpo bruto e o formato, e publica o resultado na fila. Assinatura inválida: `401`. Payload malformado: `400`, sem publicar. Falha ao publicar: `503`, e o provedor reenvia.
+- A solicitação tem DLQ própria (`invoice.enrichment.request.dlq`) e a mesma política de retry do resultado: `4xx` e malformada vão direto à DLQ, `5xx` e timeout fazem 3 retries.
+- O `provider-simulator` é um projeto à parte, só HTTP: recebe a chamada, responde `202`, espera, assina o resultado e chama o webhook (com até 3 reenvios em `5xx`). A URL do callback é configuração dele, nunca vem na solicitação.
+- O `messageId` do resultado é derivado do `messageId` da solicitação (feito pelo simulador). Uma solicitação entregue duas vezes, ou um callback reenviado, gera o mesmo resultado, que `processed_messages` descarta.
 - Horários em UTC (`timestamptz` no banco, ISO-8601 na API).
 - Criação duplicada (mesma chave de acesso): `200` com a nota existente. A garantia vem da constraint `UNIQUE`, e não de um `SELECT` prévio.
 - Chave de acesso: passa por `trim` e precisa ter exatamente 44 dígitos. Fora disso, `400`.
@@ -243,4 +307,7 @@ Uma linha do outbox só existe enquanto a solicitação está pendente: ela é a
 - O relay mantém uma transação aberta no banco enquanto publica. Um broker lento segura os locks das linhas durante esse tempo.
 - A publicação imediata usa um executor limitado. Se a fila dele encher, o relay publica as solicitações excedentes (até 5s depois).
 - Apagar as linhas do outbox após a publicação não deixa histórico de publicação.
-- O reprocessamento da DLQ é manual.
+- O reprocessamento das DLQs (solicitação e resultado) é manual.
+- O HMAC não tem timestamp nem nonce, então um callback válido capturado pode ser reenviado. A idempotência do consumer limita o efeito.
+- O segredo do HMAC é simétrico e compartilhado, sem rotação automática.
+- Se o callback nunca chegar, ou a solicitação cair na DLQ, a nota fica em `IN_ANALYSIS` sem timeout.
