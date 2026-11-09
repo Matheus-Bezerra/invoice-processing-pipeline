@@ -210,7 +210,7 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 ### O que falta verificar
 
 - Teste T7 com reentrega provocada pelo broker (fatia 7).
-- O log `Tentativas esgotadas` usa o `messageId`/`correlationId` das propriedades AMQP, que vieram vazias na publicação manual. O simulador (fatia 6) deve preencher essas propriedades, como o publisher da solicitação já faz.
+- O log `Tentativas esgotadas` usa o `messageId`/`correlationId` das propriedades AMQP, que vieram vazias na publicação manual. O publisher do resultado no `invoice-webhook` (fatia 6B) deve preencher essas propriedades, como o publisher da solicitação já faz.
 - Os logs de falha do listener do próprio Spring AMQP (`Execution of Rabbit message listener failed`) saem em inglês e com stack trace; só as mensagens da aplicação estão em português.
 
 ### Ajustes depois da revisão do autor
@@ -218,3 +218,32 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 - **Espera por conexão do pool do banco de 30s para 5s** (`spring.datasource.hikari.connection-timeout`, variável `DB_CONNECTION_TIMEOUT`, em milissegundos porque o Hikari recebe um `long`; vale para api e worker). O autor perguntou se 5s não cortaria consultas lentas. Não corta: o valor limita só a espera para **pegar** uma conexão do pool, e não a duração da consulta. Com conexões livres, pegar uma leva microssegundos; a espera só cresce com o banco fora (sem chance de sucesso) ou com o pool esgotado (no worker são 2 threads para 10 conexões). Adicionado à tabela de parâmetros da spec (seção 8).
 - E5 repetido com `docker compose stop postgres`: a 1ª execução falhou na hora (17:52:05, conexão derrubada pelo desligamento) e as outras às 17:52:12, 17:52:21 e 17:52:34 (esperas de 2s, 4s e 8s + 5s do pool). DLQ em **29s, contra 134s antes**. Um `POST` com o banco fora devolveu `500` em 5,1s.
 - `./mvnw verify` depois do ajuste: 134 testes, 0 falhas.
+
+## Reformulação antes da fatia 6 — provedor via webhook
+
+Só documentação (`spec.md`, `flow.md`, `checklist.md`, `CLAUDE.md`). Nenhum código, `pom.xml`, Compose ou teste foi alterado, e a fatia 6 não foi implementada.
+
+### Decisões tomadas pelo autor
+
+- O provedor externo não fala por fila: o `worker` o chama por HTTP (resposta `202` sem dados) e o provedor devolve o resultado num **callback assíncrono** a um webhook, com os dados da nota só no callback.
+- O webhook é um novo serviço, `invoice-webhook`, com Swagger próprio, como **terceiro perfil (`webhook`)** da mesma imagem de `api` e `worker`, sem banco. O autor escolheu o nome e o perfil depois de comparar com um projeto Maven separado.
+- Autenticação do callback por **HMAC do corpo**. Payload inválido recebe `400` e não é publicado.
+- O `provider-simulator` continua como projeto separado (provedor externo fake, só HTTP). O autor perguntou se ele ainda era usado; é, porque nada mais responderia à chamada do `worker` nem chamaria o webhook.
+- O consumer da solicitação fica no `worker`, com retry e DLQ própria.
+
+### O que a IA gerou
+
+- Contratos novos (2.5, 3.4, 4.8), cenários C1–C4 e H1–H8, fluxogramas 4.1 e 4.2, divisão da fatia 6 em 6A, 6B e 6C e atualização dos demais documentos, sem renumerar seções existentes.
+
+### Defaults assumidos pela IA (a confirmar na implementação)
+
+- Portas 8082 (webhook) e 8083 (simulador); cabeçalho `X-Signature: sha256=<hex>` sem timestamp; 3 reenvios do callback pelo simulador (1s, 2s e 4s); timeouts de 2s e 5s na chamada ao provedor.
+
+### Adaptação do enunciado
+
+- O `DESAFIO.md` diz "o provedor publica o resultado". Agora quem publica é o `invoice-webhook`, em nome do provedor. Registrado na spec (seção 1) e no checklist da fatia 9 para o README.
+
+### O que falta verificar
+
+- Tudo é desenho: nada foi executado. Os cenários C e H, a topologia da DLQ da solicitação e o perfil `webhook` sem datasource só serão exercitados nas fatias 6A a 7.
+- O HMAC sem timestamp permite replay; a limitação foi registrada e o efeito é contido pela idempotência do consumer.
