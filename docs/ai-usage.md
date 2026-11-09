@@ -163,3 +163,58 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 - **O `POST` esperava o RabbitMQ (dúvida do autor, procedente):** a publicação imediata rodava na thread do request, no `afterCommit`, antes da resposta. O outbox existe justamente para a resposta não depender do broker. Corrigido com a opção A escolhida pelo autor: o `afterCommit` só entrega a tarefa a um `ExecutorService` limitado (`ImmediatePublishConfig`: 2 a 4 threads, fila de 100, `AbortPolicy`); `RejectedExecutionException` e falhas viram log e o relay recupera. Novos testes: o `create` termina com o publisher travado, a tarefa só é submetida depois do commit, fila cheia não falha o request. Medido com o RabbitMQ parado: `POST` de 24 a 105 ms (antes 2 s no primeiro e 60 s antes do timeout de conexão).
 - **Teste de saturação do executor** (`saturatedExecutorLeavesTheExcessInTheOutboxAndTheRelayPublishesIt`, com o executor real): o publisher fica travado, 120 notas são criadas (todas com sucesso, sem esperar), o executor rejeita o excedente e as linhas rejeitadas ficam no outbox; ao liberar o publisher, `publishDue` publica exatamente o excedente, e no fim há 120 `messageId` publicados, sem repetição, e o outbox vazio. O teste calcula o excedente a partir do contador do `ThreadPoolExecutor` em vez de fixar o número. Na execução completa o log registrou 17 descartes (esperado cerca de 16 pelos limites 2 + 100 + 2; a diferença de um não afeta o teste e não foi investigada).
 - A limitação "o primeiro `POST` espera o timeout de conexão" foi removida da spec e do flow; entrou a de que o executor é limitado e o excedente depende do relay.
+
+## Fatia 5 — Consumer do resultado
+
+### Fontes consultadas
+
+| Item | Fonte |
+|---|---|
+| Retry do listener no Spring AMQP 4 (`RetryInterceptorBuilder.stateless()`, `maxRetries`, `backOffOptions`, `configureRetryPolicy`, `recoverer`): o Spring AMQP 4 trocou o Spring Retry pelo `org.springframework.core.retry` do Spring Framework 7 | Bytecode do `spring-rabbit-4.1.2.jar` (`javap`) |
+| `RetryPolicy.Builder.predicate(...)` e o `RetryTemplate` lançando `RetryException` na hora para exceção não retentável (o interceptor então chama o recoverer) | Bytecode do `spring-core-7.0.8.jar` e do `StatelessRetryOperationsInterceptor` |
+| `JacksonException.getPath()` / `Reference.getPropertyName()` (Jackson 3) | Bytecode do `jackson-core` 3 no Maven local |
+
+### O que a IA gerou
+
+- Testes primeiro, confirmados vermelhos (erro de compilação) antes do código: `EnrichmentResultServiceTest` (A: T3, T4, T5 por campo, T7, T8, E3, E5 e a guarda de estado perdendo a corrida), `EnrichmentResultPersistenceTest` (P: aprovação e rejeição gravadas, T7, E3, T8 sem gravar o `messageId`, 8 entregas simultâneas com `messageId` diferentes para a mesma nota aplicando só uma) e `EnrichmentResultConsumerTest` (I, consumer real com o perfil `worker`: caminho feliz, E4 com 7 variações de mensagem malformada, T8 na DLQ sem retry e E5 com 4 execuções e DLQ).
+- `ProcessedMessageStore` e `ProcessedMessageJdbcAdapter` (`INSERT ... ON CONFLICT DO NOTHING`), `findByAccessKeyForUpdate` (`SELECT ... FOR UPDATE`) e `updateEnrichment` (com `WHERE status = IN_ANALYSIS`) no `InvoiceRepository`, `EnrichmentResultService`, `EnrichmentResultCommand`, `ResultHandling`, `UnknownAccessKeyException`, `EnrichmentResultMessage`, `EnrichmentResultConsumer`, `ResultConsumerConfig` e as propriedades `invoice.messaging.result-retry.*` (`RESULT_RETRY_*`).
+
+### Decisões tomadas com o autor
+
+- `payload.accessKey` presente mas fora do formato de 44 dígitos conta como **mensagem malformada** (DLQ, sem consultar o banco).
+- **Erro técnico é qualquer exceção que não seja rejeição.** Malformada e chave inexistente viram `AmqpRejectAndDontRequeueException` e não fazem retry; o resto faz 3 retries e vai para a DLQ.
+- Testes P e I já nesta fatia, além dos A pedidos no checklist. As esperas do retry ficaram configuráveis para o teste I rodar com 100 ms.
+
+### Decisões de implementação
+
+- O container do consumer é declarado em `config/messaging/ResultConsumerConfig` (spec 7.1, para a fatia 7 poder pôr um interceptador fora do retry): `prefetch = 1`, `ack` automático depois do retorno do listener (portanto depois do commit), `defaultRequeueRejected = false` e retry stateless no `adviceChain`.
+- O predicado do retry percorre a cadeia de causas, porque o container embrulha a exceção do listener em `ListenerExecutionFailedException`.
+- O recoverer é próprio em vez do `RejectAndDontRequeueRecoverer`, que loga "Retries exhausted" em inglês até para uma mensagem malformada que nem fez retry. O próprio loga `Tentativas esgotadas, mensagem enviada para a DLQ` só quando houve retry.
+- Nota finalizada com `messageId` novo grava o `messageId` em `processed_messages` (a ordem do flow.md: o registro vem antes da checagem de status). Chave inexistente não grava (spec 4.5).
+
+### O que foi revisado ou corrigido
+
+- O `UPDATE` da decisão começou como query nativa; foi trocado por JPQL antes de rodar, porque um parâmetro nulo (por exemplo `cnpj` ausente numa rejeição) pode chegar ao PostgreSQL sem tipo numa query nativa. Em JPQL o tipo vem do atributo da entidade.
+- O log de mensagem malformada usava `getOriginalMessage()` do Jackson, que inclui o valor recebido (por exemplo `"abc"` em `amount`), e depois `getPathReference()`, que expõe o nome da classe Java. Ficou só o caminho do campo (`payload.amount`). Quando o JSON é legível, os ids do log vêm do envelope, e não das propriedades AMQP (que podem vir vazias).
+- O interceptor de retry era um bean `MethodInterceptor`; virou método privado da configuração, sem bean sem uso fora dali.
+- De novo, o `docker compose up --build -d` não recriou a `api` e o `worker` (mesmo problema da fatia 3); foi preciso `--force-recreate`.
+
+### Verificação executada
+
+- `./mvnw verify`: 134 testes, 0 falhas (26 novos).
+- Os logs dos testes mostraram cada caminho: as 7 variações de malformada, `Chave inexistente, mensagem enviada para a DLQ`, uma única passagem por `Tentativas esgotadas` (E5) e `Resultado duplicado ignorado`.
+- `grep`: `application` não importa `org.springframework.amqp`, `adapter` nem `config`; `domain` continua sem Spring, JPA e Jackson.
+- `docker compose up` e API HTTP do RabbitMQ: `POST` criou a nota, o resultado publicado em `invoice.enrichment` (routing key `result`) a aprovou; o mesmo resultado de novo gerou `Resultado duplicado ignorado`, com o mesmo `approvedAt` e uma linha em `processed_messages`; `isto nao e json` foi para `invoice.enrichment.result.dlq` (conferido com `rabbitmqctl list_queues`; a API de gerenciamento mostrou 0 por alguns segundos, porque as estatísticas dela atualizam com atraso).
+- E5 com `docker compose stop postgres`: as 4 execuções terminaram às 17:43:40, 17:44:12, 17:44:46 e 17:45:24 (intervalos de 32s, 34s e 38s = esperas de 2s, 4s e 8s **mais 30s do `connection-timeout` padrão do Hikari** em cada tentativa) e a mensagem foi para a DLQ.
+
+### O que falta verificar
+
+- Teste T7 com reentrega provocada pelo broker (fatia 7).
+- O log `Tentativas esgotadas` usa o `messageId`/`correlationId` das propriedades AMQP, que vieram vazias na publicação manual. O simulador (fatia 6) deve preencher essas propriedades, como o publisher da solicitação já faz.
+- Os logs de falha do listener do próprio Spring AMQP (`Execution of Rabbit message listener failed`) saem em inglês e com stack trace; só as mensagens da aplicação estão em português.
+
+### Ajustes depois da revisão do autor
+
+- **Espera por conexão do pool do banco de 30s para 5s** (`spring.datasource.hikari.connection-timeout`, variável `DB_CONNECTION_TIMEOUT`, em milissegundos porque o Hikari recebe um `long`; vale para api e worker). O autor perguntou se 5s não cortaria consultas lentas. Não corta: o valor limita só a espera para **pegar** uma conexão do pool, e não a duração da consulta. Com conexões livres, pegar uma leva microssegundos; a espera só cresce com o banco fora (sem chance de sucesso) ou com o pool esgotado (no worker são 2 threads para 10 conexões). Adicionado à tabela de parâmetros da spec (seção 8).
+- E5 repetido com `docker compose stop postgres`: a 1ª execução falhou na hora (17:52:05, conexão derrubada pelo desligamento) e as outras às 17:52:12, 17:52:21 e 17:52:34 (esperas de 2s, 4s e 8s + 5s do pool). DLQ em **29s, contra 134s antes**. Um `POST` com o banco fora devolveu `500` em 5,1s.
+- `./mvnw verify` depois do ajuste: 134 testes, 0 falhas.

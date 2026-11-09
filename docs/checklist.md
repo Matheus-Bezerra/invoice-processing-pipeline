@@ -52,14 +52,14 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 ## Fatia 5 — Consumer do resultado
 
-- [ ] Consumer com transação, `FOR UPDATE` na nota e `processed_messages`
-- [ ] Retry (3 retries, 2s, 4s e 8s) e DLQ configurados
-- [ ] **T7** (A): o mesmo resultado entregue duas vezes não atualiza de novo
-- [ ] **T8** (A): chave inexistente não cria nota e vai para a DLQ
-- [ ] **E3** (A): `messageId` diferente para nota finalizada não altera nada
-- [ ] **E4** (I): mensagem malformada vai direto para a DLQ
-- [ ] **E5** (A): erro técnico faz 3 retries e depois vai para a DLQ
-- [ ] Logs em português, com `correlationId`
+- [x] Consumer com transação, `FOR UPDATE` na nota e `processed_messages`
+- [x] Retry (3 retries, 2s, 4s e 8s) e DLQ configurados
+- [x] **T7** (A): o mesmo resultado entregue duas vezes não atualiza de novo
+- [x] **T8** (A): chave inexistente não cria nota e vai para a DLQ
+- [x] **E3** (A): `messageId` diferente para nota finalizada não altera nada
+- [x] **E4** (I): mensagem malformada vai direto para a DLQ
+- [x] **E5** (A): erro técnico faz 3 retries e depois vai para a DLQ
+- [x] Logs em português, com `correlationId`
 
 ## Fatia 6 — Simulador do provedor
 
