@@ -31,4 +31,16 @@ class InvoiceRepositoryAdapter implements InvoiceRepository {
     public Optional<Invoice> findByAccessKey(AccessKey accessKey) {
         return jpa.findByAccessKey(accessKey.value()).map(InvoiceMapper::toDomain);
     }
+
+    @Override
+    public Optional<Invoice> findByAccessKeyForUpdate(AccessKey accessKey) {
+        return jpa.findByAccessKeyForUpdate(accessKey.value()).map(InvoiceMapper::toDomain);
+    }
+
+    @Override
+    public boolean updateEnrichment(Invoice invoice) {
+        return jpa.updateEnrichment(invoice.id(), invoice.status(), invoice.cnpj(), invoice.amount(),
+                invoice.issueDate(), invoice.cancelled(), invoice.approvedAt(), invoice.rejectionReason(),
+                invoice.updatedAt()) == 1;
+    }
 }
