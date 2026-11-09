@@ -42,13 +42,13 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 ## Fatia 4 — Relay e publisher
 
-- [ ] Topologia do RabbitMQ (exchange, filas, DLX, DLQ) declarada
-- [ ] Publisher com *publisher confirm*
-- [ ] Publicação imediata após o commit na `api`
-- [ ] Relay agendado no `worker` com `FOR UPDATE SKIP LOCKED`, lote e backoff
-- [ ] **T9** (A): falha na publicação preserva a nota, e o relay publica depois
-- [ ] **E8** (P): a linha do outbox é apagada depois da publicação confirmada
-- [ ] **E9** (P): dois relays simultâneos não publicam a mesma linha duas vezes
+- [x] Topologia do RabbitMQ (exchange, filas, DLX, DLQ) declarada
+- [x] Publisher com *publisher confirm*
+- [x] Publicação imediata após o commit na `api`
+- [x] Relay agendado no `worker` com `FOR UPDATE SKIP LOCKED`, lote e backoff
+- [x] **T9** (A): falha na publicação preserva a nota, e o relay publica depois
+- [x] **E8** (P): a linha do outbox é apagada depois da publicação confirmada
+- [x] **E9** (P): dois relays simultâneos não publicam a mesma linha duas vezes
 
 ## Fatia 5 — Consumer do resultado
 

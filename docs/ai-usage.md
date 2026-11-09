@@ -114,3 +114,52 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 
 - Erros genéricos do framework que não têm handler próprio (405, 415, 406) saem em `problem+json`, mas com `title` e `detail` padrão do Spring, em inglês. Só os erros previstos na spec foram traduzidos.
 - A linha do outbox só é gravada; a publicação (imediata e pelo relay) é da fatia 4.
+
+## Fatia 4 — Relay e publisher
+
+### Fontes consultadas
+
+| Item | Fonte |
+|---|---|
+| `CorrelationData.getFuture()`, `getReturned()` e `Confirm` (record com `ack()`/`reason()`) | Bytecode do `spring-rabbit-4.1.2.jar` no Maven local (`javap`) |
+| Garantia de que a mensagem devolvida é preenchida antes do `ack` (confirms + returns) | Referência do Spring AMQP, seção "Correlated Publisher Confirms and Returns" (Context7) |
+| `@Scheduled(fixedDelayString = "1s")` aceita o formato simples de duração | `ScheduledAnnotationBeanPostProcessor` do `spring-context-7.0` usa `DurationFormatterUtils.detectAndParse` (conferido no jar) |
+
+### O que a IA gerou
+
+- Testes primeiro, confirmados vermelhos (erro de compilação) antes do código: `OutboxPublisherServiceTest` (A: T9, backoff, linha já reservada, falha isolada no lote), `ImmediatePublication` em `InvoiceServiceTest` (A: publica só depois do commit, falha não propaga, chave repetida não publica), `OutboxRelayPersistenceTest` (P: E8 pelo relay e pela publicação imediata, T9 com backoff no banco, E9 com dois relays simultâneos) e `RabbitEnrichmentRequestPublisherTest` (RabbitMQ real: topologia, propriedades da mensagem, mensagem não roteável vira falha, rejeição na fila de resultado vai para a DLQ).
+- `PendingRequest`, `EnrichmentRequestPublisher`, novos métodos do `OutboxPort` (`lockById`, `lockDue`, `delete`, `markFailed`), `OutboxPublisherService`, `OutboxRelaySettings`, `RabbitEnrichmentRequestPublisher`, `MessagePublishException`, `OutboxRelayJob`, `MessagingTopology`, `RabbitTopologyConfig`, `OutboxConfig`, `SchedulingConfig` e as propriedades no `application.yml`.
+
+### Decisões tomadas com o autor
+
+- **Publicação imediata no `afterCommit`** registrado em `InvoiceService.create`, e não no controller: num desenho orientado a eventos o disparo fica ligado ao commit da transação que gravou o evento (a linha do outbox), vale para qualquer ponto de entrada e não publica nada se houver rollback. Ela roda em `REQUIRES_NEW` (dentro do `afterCommit` os recursos da transação original ainda estão ligados à thread) e a exceção é capturada para o `POST` continuar `201`.
+- **Publisher confirm correlacionado + returns com `mandatory`**, em vez de `simple` + `waitForConfirmsOrDie`: sem os returns, uma mensagem sem fila para rotear recebe `ack` e a linha do outbox seria apagada com a mensagem perdida.
+- **Backoff do relay sem limite de tentativas** (2s, 4s, 8s, 16s, 32s e depois 60s). O autor perguntou se não seriam 4 tentativas no total; o limite de 4 execuções (1 + 3 retries de 2s, 4s e 8s) é do consumer do resultado (fatia 5). O relay não pode desistir, porque o outbox não tem DLQ e a nota ficaria em `IN_ANALYSIS` para sempre.
+
+### O que foi revisado ou corrigido
+
+- **`POST` levou 60s com o broker fora** no teste manual com Compose: a publicação imediata roda na thread do request e o timeout de conexão padrão do `CachingConnectionFactory` é 60s. Os testes automatizados não pegaram isso. Corrigido com `spring.rabbitmq.connection-timeout: 2s` (variável `RABBITMQ_CONNECTION_TIMEOUT`); depois disso o primeiro `POST` levou cerca de 2s e os seguintes, cerca de 30 ms. Registrado como limitação na spec.
+- O teste T9 de nível A tinha um mock de `InvoiceRepository` que o `OutboxPublisherService` nem recebe, o que tornava a verificação "a nota não é tocada" vazia. Removido; a preservação da nota é conferida no teste de persistência (status `IN_ANALYSIS` no banco depois da falha).
+- `InvoiceServicePersistenceTest` (fatia 3) passou a usar um publisher mockado que falha, porque agora a publicação imediata apagaria a linha do outbox que esses testes contam.
+- O backoff usa o valor de `attempts` já incrementado (primeira falha espera 2s). A spec permitia as duas leituras; a escolha ficou registrada na seção 4.7.
+
+### Verificação executada
+
+- `./mvnw verify`: 108 testes, 0 falhas (27 novos, contando o nack, a publicação em segundo plano e a saturação do executor).
+- `grep`: `application` não importa `org.springframework.amqp`, `adapter` nem `config`; `domain` continua sem Spring, JPA e Jackson.
+- `docker compose up --build`: `rabbitmqctl` mostrou o exchange `invoice.enrichment` e a DLX `invoice.enrichment.dlx` (direct), as três filas e os argumentos de dead letter na fila de resultado. Um `POST` com o broker no ar devolveu `201`, a linha do outbox foi apagada e a mensagem chegou em `invoice.enrichment.request`; uma linha que tinha ficado da fatia 3 foi publicada pelo relay do worker.
+- Com `docker compose stop rabbitmq`: `POST` devolveu `201`, a nota ficou `IN_ANALYSIS` e a linha do outbox acumulou tentativas com `last_error` e esperas de 2s, 4s, 8s e 16s nos logs. Depois de `docker compose start rabbitmq`, o relay publicou a mesma solicitação e apagou a linha.
+
+### O que falta verificar
+
+- Testes de nível I de T9 (falha de publicação seguida de recuperação com o broker real) e E8 ficam para a fatia 7.
+- Ainda não há consumidor da fila de solicitação (simulador, fatia 6); as mensagens publicadas ficam acumuladas em `invoice.enrichment.request` no ambiente local.
+- Nada pendente sobre o nack (ver abaixo, "Ajustes depois da revisão do autor").
+
+### Ajustes depois da revisão do autor
+
+- **Teste de nack com o broker real:** `nackFromTheBrokerIsAFailure` recria a fila de solicitação com `x-max-length=1` e `x-overflow=reject-publish`; a primeira publicação é confirmada e a segunda recebe `nack` do RabbitMQ, que vira `MessagePublishException`. O teste restaura a topologia no `finally`.
+- **Tick do relay de 1s para 5s** (`OUTBOX_RELAY_TICK`), atualizado em `application.yml`, `spec.md`, `flow.md` e `CLAUDE.md`. Com a publicação imediata cobrindo o caminho normal, o relay só recupera falhas, então 5s basta.
+- **O `POST` esperava o RabbitMQ (dúvida do autor, procedente):** a publicação imediata rodava na thread do request, no `afterCommit`, antes da resposta. O outbox existe justamente para a resposta não depender do broker. Corrigido com a opção A escolhida pelo autor: o `afterCommit` só entrega a tarefa a um `ExecutorService` limitado (`ImmediatePublishConfig`: 2 a 4 threads, fila de 100, `AbortPolicy`); `RejectedExecutionException` e falhas viram log e o relay recupera. Novos testes: o `create` termina com o publisher travado, a tarefa só é submetida depois do commit, fila cheia não falha o request. Medido com o RabbitMQ parado: `POST` de 24 a 105 ms (antes 2 s no primeiro e 60 s antes do timeout de conexão).
+- **Teste de saturação do executor** (`saturatedExecutorLeavesTheExcessInTheOutboxAndTheRelayPublishesIt`, com o executor real): o publisher fica travado, 120 notas são criadas (todas com sucesso, sem esperar), o executor rejeita o excedente e as linhas rejeitadas ficam no outbox; ao liberar o publisher, `publishDue` publica exatamente o excedente, e no fim há 120 `messageId` publicados, sem repetição, e o outbox vazio. O teste calcula o excedente a partir do contador do `ThreadPoolExecutor` em vez de fixar o número. Na execução completa o log registrou 17 descartes (esperado cerca de 16 pelos limites 2 + 100 + 2; a diferença de um não afeta o teste e não foi investigada).
+- A limitação "o primeiro `POST` espera o timeout de conexão" foi removida da spec e do flow; entrou a de que o executor é limitado e o excedente depende do relay.

@@ -80,7 +80,7 @@ Para `outbox` e `processed_messages` **não** crie modelo de domínio: use adapt
 ## Decisões fixas (não rediscutir sem motivo)
 
 - **Outbox:** nota + linha do outbox na mesma transação. A linha é apagada na transação que confirma a publicação (sem `published_at`). `id` da linha = `messageId` da solicitação.
-- **Publicação:** imediata após o commit na `api` e relay agendado no `worker` (tick 1s, lote de 50, backoff `min(2^attempts s, 60s)`, sem limite de tentativas). Ambos usam a mesma função, com `FOR UPDATE SKIP LOCKED` e *publisher confirm*. Entrega *at-least-once*.
+- **Publicação:** imediata após o commit na `api` e relay agendado no `worker` (tick 5s, lote de 50, backoff `min(2^attempts s, 60s)`, sem limite de tentativas). Ambos usam a mesma função, com `FOR UPDATE SKIP LOCKED` e *publisher confirm*. Entrega *at-least-once*.
 - **A API nunca chama o provedor.** Só publica na fila. O request não espera o enriquecimento e nunca aprova a nota.
 - **Criação:** `201` para chave nova, `200` com a nota existente para chave repetida. A garantia vem do `UNIQUE`, usando `INSERT ... ON CONFLICT DO NOTHING` e releitura. Chave com `trim` e exatamente 44 dígitos, senão `400`.
 - **Resultado:** a nota é localizada por `accessKey`. O resultado nunca cria nota.

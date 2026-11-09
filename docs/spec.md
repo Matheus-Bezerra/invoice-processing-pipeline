@@ -226,7 +226,10 @@ Texto legível gravado em `rejection_reason`. Os nomes dos campos aparecem como 
 - A nota e a linha do outbox são gravadas na mesma transação. A linha existe apenas enquanto a solicitação está pendente e é apagada na transação que confirma a publicação.
 - O `id` da linha é o `messageId` da solicitação.
 - Tanto a publicação imediata (API) quanto o relay (worker) usam a mesma função de publicação. Ela reserva a linha com `FOR UPDATE SKIP LOCKED`, publica com *publisher confirm* e apaga a linha antes do commit.
-- O relay acorda a cada tick (padrão 1s), pega até 50 linhas com `next_attempt_at <= now()` e, em caso de falha, faz `attempts + 1`, `next_attempt_at = now + min(2^attempts s, 60s)` e grava `last_error`.
+- A publicação imediata é disparada no `afterCommit` da transação que gravou a nota e o outbox (registrado pelo próprio caso de uso, não pelo controller). Ela roda **em outra thread** (executor limitado: 2 a 4 threads e fila de 100), numa transação nova (`REQUIRES_NEW`), então o `POST` não espera o broker. Qualquer falha, ou fila do executor cheia, é registrada em log sem mudar a resposta, e o relay publica depois. Se a transação fizer rollback, nada é publicado.
+- O *publisher confirm* é correlacionado, com `mandatory` e *returns*: a publicação só conta como confirmada com `ack` do broker e sem devolução (mensagem roteada para alguma fila). `nack`, timeout (padrão 5s) ou devolução contam como falha.
+- O relay acorda a cada tick (padrão 5s), pega até 50 linhas com `next_attempt_at <= now()` e, em caso de falha, faz `attempts + 1`, `next_attempt_at = now + min(2^attempts s, 60s)` (com o valor já incrementado: 2s, 4s, 8s, 16s, 32s e depois 60s) e grava `last_error`. Uma falha numa linha não impede a publicação das outras do lote.
+- O timeout de conexão com o RabbitMQ é curto (padrão 2s), para não prender as threads da publicação imediata quando o broker está fora.
 - O relay nunca desiste de uma linha.
 
 ## 5. Dados
@@ -314,10 +317,11 @@ Parâmetros configuráveis, com os padrões:
 
 | Parâmetro | Padrão |
 |---|---|
-| Tick do relay | 1s |
+| Tick do relay | 5s |
 | Tamanho do lote do relay | 50 |
 | Teto do backoff do relay | 60s |
 | Timeout do publisher confirm | 5s |
+| Timeout de conexão com o RabbitMQ | 2s |
 | Retries do consumer | 3 (esperas de 2s, 4s e 8s) |
 | Atraso do simulador | 300 ms |
 
@@ -365,6 +369,7 @@ Integração com fornecedor fiscal real, consulta à SEFAZ, validação fiscal c
 - A entrega é *at-least-once*: a solicitação pode ser publicada duas vezes, e o provedor deve deduplicar pelo `messageId`.
 - A espera do retry acontece dentro do worker e bloqueia aquele consumer (`prefetch = 1`). Filas de retry com TTL evitariam isso.
 - O relay mantém uma transação aberta enquanto publica. Um broker lento segura os locks das linhas.
+- A publicação imediata depende de um executor limitado. Se o broker ficar lento e a fila dele encher, as solicitações excedentes só são publicadas pelo relay (até 5s depois).
 - Apagar as linhas do outbox após a publicação não deixa histórico de publicação.
 - O reprocessamento da DLQ é manual.
 - Uma mensagem de resultado sem `cancelled` rejeita a nota de forma irreversível, porque `REJECTED` é um estado final.

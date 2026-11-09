@@ -17,7 +17,7 @@ flowchart LR
     end
 
     subgraph worker_svc["worker (perfil worker)"]
-        relay["Relay do outbox (tick a cada 1s)"]
+        relay["Relay do outbox (tick a cada 5s)"]
         consumer["Consumer de resultado"]
     end
 
@@ -75,7 +75,7 @@ sequenceDiagram
     API-->>C: 200 (status APPROVED, dados enriquecidos, approvedAt)
 ```
 
-Se a publicação imediata falhar, o cliente recebe `201` do mesmo jeito e a nota continua `IN_ANALYSIS`. A linha do outbox permanece para o relay (seção 3).
+A publicação imediata é disparada no `afterCommit` da transação da nota, em outra thread e numa transação nova, então o `POST` não espera o broker. Se ela falhar, o cliente recebe `201` do mesmo jeito e a nota continua `IN_ANALYSIS`. A linha do outbox permanece para o relay (seção 3).
 O request nunca espera o provedor, e a nota nunca é aprovada durante a criação.
 
 ## 3. Falha de publicação e recuperação
@@ -94,7 +94,7 @@ sequenceDiagram
     API-xMQ: publicação falha (broker fora do ar)
     API-->>C: 201 Created (nota preservada, solicitação ainda pendente no outbox)
 
-    loop a cada tick (1s), com backoff por linha
+    loop a cada tick (5s), com backoff por linha
         W->>DB: reserva linhas com next_attempt_at <= now (SKIP LOCKED)
         W-xMQ: publicação falha de novo
         W->>DB: attempts + 1, next_attempt_at = now + min(2^attempts s, 60s), last_error
@@ -226,7 +226,9 @@ Uma linha do outbox só existe enquanto a solicitação está pendente: ela é a
 
 - Relay agendado do outbox mais publicação imediata após o commit. Os dois usam a mesma função e `FOR UPDATE SKIP LOCKED`.
 - A entrega é at-least-once. Uma queda entre a publicação e o commit pode publicar a solicitação duas vezes, então o provedor deve deduplicar pelo `messageId` da solicitação.
-- Relay: tick de 1s a 2s, backoff exponencial com teto de 60s e sem limite de tentativas.
+- Publicação imediata no `afterCommit` da transação que gravou a nota, em outra thread (`REQUIRES_NEW`), com falha só registrada em log.
+- *Publisher confirm* correlacionado com `mandatory`: só apaga a linha com `ack` e sem devolução.
+- Relay: tick de 5s, backoff exponencial (2s, 4s, 8s, 16s, 32s) com teto de 60s e sem limite de tentativas.
 - Consumer: 3 retries dentro do worker, com esperas de 2s, 4s e 8s (até 4 execuções no total), e depois DLQ. Não há tabela de log de erros, a DLQ guarda a mensagem.
 - O `messageId` do resultado é derivado do `messageId` da solicitação. Uma solicitação entregue duas vezes gera o mesmo resultado, que `processed_messages` descarta.
 - Horários em UTC (`timestamptz` no banco, ISO-8601 na API).
@@ -239,5 +241,6 @@ Uma linha do outbox só existe enquanto a solicitação está pendente: ela é a
 
 - A espera do retry acontece dentro do worker e bloqueia aquele consumer (`prefetch = 1`). Filas de retry com TTL evitariam isso.
 - O relay mantém uma transação aberta no banco enquanto publica. Um broker lento segura os locks das linhas durante esse tempo.
+- A publicação imediata usa um executor limitado. Se a fila dele encher, o relay publica as solicitações excedentes (até 5s depois).
 - Apagar as linhas do outbox após a publicação não deixa histórico de publicação.
 - O reprocessamento da DLQ é manual.
