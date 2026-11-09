@@ -4,7 +4,7 @@ Orientações para quem for implementar este projeto. Leia antes de qualquer tar
 
 ## O que é
 
-Desafio de estudo: serviço que recebe a chave de acesso (44 dígitos) de uma nota fiscal, grava a nota em `IN_ANALYSIS`, pede o enriquecimento por mensageria (outbox + RabbitMQ) e, ao receber o resultado de um provedor simulado, aprova ou rejeita a nota.
+Desafio de estudo: serviço que recebe a chave de acesso (44 dígitos) de uma nota fiscal, grava a nota em `IN_ANALYSIS`, pede o enriquecimento por mensageria (outbox + RabbitMQ) e, ao receber o resultado de um provedor simulado, aprova ou rejeita a nota. O provedor fala HTTP: o `worker` repassa a solicitação por `POST`, o provedor responde `202` e devolve o resultado chamando um **webhook assinado (HMAC)**, que publica o resultado na fila.
 
 ## Leia primeiro
 
@@ -44,14 +44,17 @@ Pacote base: `dev.matheus.invoice`.
 dev.matheus.invoice/
 ├── domain/            Invoice, InvoiceStatus, AccessKey, Cnpj, exceções de negócio
 ├── application/
-│   ├── service/       criação/consulta de notas, relay do outbox, processamento do resultado
+│   ├── service/       criação/consulta de notas, relay do outbox, processamento do resultado,
+│   │                  repasse da solicitação ao provedor, publicação do resultado do webhook
 │   └── port/out/      InvoiceRepository, OutboxPort, EnrichmentRequestPublisher,
-│                      ProcessedMessageStore, ClockPort
+│                      ProcessedMessageStore, ClockPort, ProviderClient,
+│                      EnrichmentResultPublisher
 ├── adapter/
-│   ├── in/web/        api/ (interface com Swagger), controller/, dto/, exception/
-│   ├── in/messaging/  consumer do resultado
+│   ├── in/web/        api/ (interface com Swagger), controller/, dto/, exception/,
+│   │                  webhook/ (interface com Swagger, controller, DTO, verificação do HMAC)
+│   ├── in/messaging/  consumers do resultado e da solicitação
 │   ├── in/scheduler/  job do relay
-│   └── out/           persistence/ (JPA), messaging/ (publisher RabbitMQ)
+│   └── out/           persistence/ (JPA), messaging/ (publisher RabbitMQ), http/ (client do provedor)
 ├── config/
 └── shared/            só se houver algo realmente compartilhado
 ```
@@ -81,7 +84,7 @@ Para `outbox` e `processed_messages` **não** crie modelo de domínio: use adapt
 
 - **Outbox:** nota + linha do outbox na mesma transação. A linha é apagada na transação que confirma a publicação (sem `published_at`). `id` da linha = `messageId` da solicitação.
 - **Publicação:** imediata após o commit na `api` e relay agendado no `worker` (tick 5s, lote de 50, backoff `min(2^attempts s, 60s)`, sem limite de tentativas). Ambos usam a mesma função, com `FOR UPDATE SKIP LOCKED` e *publisher confirm*. Entrega *at-least-once*.
-- **A API nunca chama o provedor.** Só publica na fila. O request não espera o enriquecimento e nunca aprova a nota.
+- **A API nunca chama o provedor.** Só publica na fila. O request não espera o enriquecimento e nunca aprova a nota. Quem chama o provedor por HTTP é o consumer da solicitação, no `worker`, de forma assíncrona.
 - **Criação:** `201` para chave nova, `200` com a nota existente para chave repetida. A garantia vem do `UNIQUE`, usando `INSERT ... ON CONFLICT DO NOTHING` e releitura. Chave com `trim` e exatamente 44 dígitos, senão `400`.
 - **Resultado:** a nota é localizada por `accessKey`. O resultado nunca cria nota.
 - **Decisão (ordem):** `cancelled = true` → rejeita; falta `cnpj`, `amount`, `issueDate` ou `cancelled` → rejeita como incompleta; CNPJ inválido ou `amount` negativo → rejeita como dados inválidos; senão aprova. `cancelled` é lido como `Boolean`, **nunca** `boolean`.
@@ -89,8 +92,10 @@ Para `outbox` e `processed_messages` **não** crie modelo de domínio: use adapt
 - **Idempotência:** `processed_messages(message_id)` gravada na **mesma transação** do update, mais guarda de estado final (`UPDATE ... WHERE status = 'IN_ANALYSIS'`). Trava a linha da nota com `FOR UPDATE`.
 - **Destino das mensagens:** malformada e chave inexistente → DLQ direto; duplicata e nota finalizada → `ack` com log; erro técnico → 3 retries (2s, 4s, 8s) dentro do worker e depois DLQ. `prefetch = 1`.
 - **`messageId` do resultado** é derivado do `messageId` da solicitação (`UUID.nameUUIDFromBytes`), no simulador.
-- **Simulador** (`provider-simulator/`, projeto separado) sempre devolve resultado completo e aprovável. Rejeições são cobertas só nos testes automatizados.
-- `api` e `worker` são o mesmo código e a mesma imagem, com perfis `api` e `worker` do Spring.
+- **Provedor via HTTP, não via fila:** o `worker` consome `invoice.enrichment.request` e faz `POST {PROVIDER_BASE_URL}/enrichment-requests` (resposta `202` sem dados). Os dados da nota chegam **só** no callback. `4xx` e malformada → DLQ da solicitação (`invoice.enrichment.request.dlq`) direto; `5xx` e timeout → 3 retries (2s, 4s, 8s) e DLQ. A URL do callback é configuração do provedor e nunca vai na mensagem.
+- **Webhook** (`invoice-webhook`, perfil `webhook`): `POST /webhooks/enrichment-results`, corpo = envelope `EnrichmentResult`, cabeçalho `X-Signature: sha256=<hex>` (HMAC-SHA256 do corpo bruto, comparação em tempo constante, segredo `WEBHOOK_HMAC_SECRET`). Ordem: assinatura (`401`), payload (`400`), publicação com *publisher confirm* (`202`, ou `503` se falhar). Não acessa banco e não valida regra de negócio. Tem Swagger próprio. Nunca loga o segredo nem a assinatura.
+- **Simulador** (`provider-simulator/`, projeto separado, só HTTP, sem broker): recebe a chamada, responde `202`, espera, assina o resultado completo e aprovável e chama o webhook (até 3 reenvios em `5xx`). Rejeições são cobertas só nos testes automatizados.
+- `api`, `worker` e `invoice-webhook` são o mesmo código e a mesma imagem, com perfis `api`, `worker` e `webhook` do Spring. O perfil `webhook` não usa banco (sem DataSource, JPA nem Flyway).
 
 ## Comandos
 
@@ -100,9 +105,11 @@ Requisitos: JDK 25 e Docker em execução (os testes usam Testcontainers).
 ./mvnw verify                      # compila e roda os testes (Testcontainers sobe Postgres e RabbitMQ)
 ./mvnw test                        # só os testes
 cp .env.example .env               # uma vez; valores locais de exemplo
-docker compose up --build          # postgres, rabbitmq, api (8080) e worker (8081)
+docker compose up --build          # postgres, rabbitmq, api (8080), worker (8081), invoice-webhook (8082) e provider-simulator (8083)
 docker compose down                # derruba tudo
 ```
+
+Hoje o Compose sobe só `postgres`, `rabbitmq`, `api` e `worker`. `invoice-webhook` e `provider-simulator` entram nas fatias 6B e 6C.
 
 Rodar localmente fora do Compose (com `postgres` e `rabbitmq` do Compose no ar):
 
@@ -110,15 +117,17 @@ Rodar localmente fora do Compose (com `postgres` e `rabbitmq` do Compose no ar):
 docker compose up -d postgres rabbitmq
 SPRING_PROFILES_ACTIVE=api ./mvnw spring-boot:run      # API em :8080, Swagger em /swagger-ui.html
 SPRING_PROFILES_ACTIVE=worker ./mvnw spring-boot:run   # worker, health em :8081/actuator/health
+SPRING_PROFILES_ACTIVE=webhook ./mvnw spring-boot:run  # webhook em :8082, Swagger em /swagger-ui.html (só precisa do rabbitmq)
 ```
 
-Health check: `curl localhost:8080/actuator/health` (api) e `curl localhost:8081/actuator/health` (worker).
+Health check: `curl localhost:8080/actuator/health` (api), `curl localhost:8081/actuator/health` (worker) e `curl localhost:8082/actuator/health` (invoice-webhook).
 
 ## Como trabalhar
 
 - Siga o plano em fatias da spec (seção 10), **uma fatia por vez**, sem adiantar a próxima.
 - Ao concluir um item, marque `[x]` em `docs/checklist.md`, **só depois** de o código existir e os testes passarem. Se um item não puder ser concluído, deixe desmarcado e explique o motivo.
-- Em cada fatia, escreva primeiro os testes dos cenários indicados (T1–T10, E1–E10) e termine com eles passando.
+- Em cada fatia, escreva primeiro os testes dos cenários indicados (T1–T10, E1–E10, C1–C4, H1–H8) e termine com eles passando.
+- A fatia 6 é dividida em 6A (chamada ao provedor), 6B (`invoice-webhook`) e 6C (simulador e Compose). Siga nessa ordem.
 - Rode o build e os testes antes de dizer que terminou, e diga o que passou e o que falhou.
 - Não crie pacotes, interfaces ou classes sem uso. Prefira o simples.
 - Mantenha o simulador, o Compose e o `.env.example` funcionando: o projeto precisa subir com `docker compose up` sem contas externas.

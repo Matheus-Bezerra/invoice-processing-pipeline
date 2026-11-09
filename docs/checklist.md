@@ -1,6 +1,6 @@
 # Checklist de implementação
 
-Acompanhamento do que a [spec](spec.md) pede. Marque `[x]` **só depois** de o item estar implementado e os testes correspondentes estarem passando. Os IDs (T1, E4 etc.) são os cenários da seção 7 da spec.
+Acompanhamento do que a [spec](spec.md) pede. Marque `[x]` **só depois** de o item estar implementado e os testes correspondentes estarem passando. Os IDs (T1, E4, C1, H1 etc.) são os cenários da seção 7 da spec.
 
 Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (MockMvc), **P** persistência (Testcontainers), **I** integração com o broker real.
 
@@ -61,17 +61,53 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 - [x] **E5** (A): erro técnico faz 3 retries e depois vai para a DLQ
 - [x] Logs em português, com `correlationId`
 
-## Fatia 6 — Simulador do provedor
+## Fatia 6A — Chamada ao provedor pelo `worker`
 
-- [ ] Projeto `provider-simulator/` com `pom.xml` e `Dockerfile` próprios
-- [ ] Consome a solicitação, espera o atraso configurado e publica resultado aprovável
+- [ ] Fila `invoice.enrichment.request` com DLX e DLQ `invoice.enrichment.request.dlq`
+- [ ] Port `ProviderClient` e client HTTP em `adapter/out/http`, com timeouts de conexão e de resposta configuráveis
+- [ ] Consumer da solicitação no `worker`, com `prefetch = 1`
+- [ ] Retry (3 retries, 2s, 4s e 8s) para `5xx`, timeout e conexão recusada; `4xx` e malformada direto para a DLQ
+- [ ] **C1** (A): solicitação consumida chama o provedor com o corpo e o `X-Correlation-Id` corretos, recebe `202` e dá `ack`
+- [ ] **C2** (A): `4xx` do provedor vai direto para a DLQ da solicitação, sem retry
+- [ ] **C3** (A): `5xx` ou falta de resposta faz 3 retries e depois DLQ
+- [ ] **C4** (A): solicitação malformada vai direto para a DLQ, sem chamar o provedor
+- [ ] Logs em português, com `correlationId` e sem dados sensíveis
+
+## Fatia 6B — `invoice-webhook` (perfil `webhook`)
+
+- [ ] Perfil `webhook` sobe só com RabbitMQ, sem datasource, JPA nem Flyway, com health check
+- [ ] `POST /webhooks/enrichment-results` com interface e Swagger em português, e Swagger UI funcionando
+- [ ] Verificação do HMAC-SHA256 sobre o corpo bruto, em tempo constante, com o segredo vindo do ambiente
+- [ ] Validação do payload (mesmas regras de malformada de 3.2) e erros em `problem+json`, em português
+- [ ] Port `EnrichmentResultPublisher` e publicação com *publisher confirm* correlacionado, `mandatory` e *returns*
+- [ ] **H1** (W): assinatura válida e resultado bem formado publica e responde `202`
+- [ ] **H2** (W): sem `X-Signature` ou mal formada responde `401` e não publica
+- [ ] **H3** (W): corpo alterado depois de assinado responde `401` e não publica
+- [ ] **H4** (W): payload malformado responde `400` e não publica (um teste por motivo)
+- [ ] **H5** (A, W): falha na publicação (`nack`, timeout ou devolução) responde `503`
+- [ ] **H7** (W): Swagger UI disponível e documentando o endpoint em português
+- [ ] **H8** (W): o perfil sobe sem datasource, sem JPA e sem Flyway
+- [ ] Logs em português, sem o segredo, sem a assinatura e sem CNPJ ou valor
+
+## Fatia 6C — Simulador do provedor e Compose
+
+- [ ] Projeto `provider-simulator/` com `pom.xml` e `Dockerfile` próprios, só HTTP (sem broker)
+- [ ] `POST /enrichment-requests`: valida o corpo, deduplica pelo `messageId` e responde `202` sem dados
+- [ ] Espera o atraso configurado e monta resultado completo e aprovável
 - [ ] `messageId` do resultado derivado do `messageId` da solicitação
-- [ ] Incluído no Docker Compose
+- [ ] Assina o corpo (HMAC-SHA256) e chama o webhook, com até 3 reenvios em `5xx` e timeout
+- [ ] Incluído no Docker Compose, junto com o `invoice-webhook` (seis serviços, healthchecks e dependências)
+- [ ] `.env.example` com `WEBHOOK_HMAC_SECRET`, `PROVIDER_BASE_URL` e `WEBHOOK_URL` de exemplo (sem segredos reais)
+- [ ] `docker compose up` completa o fluxo: nota criada e depois `APPROVED`
 
 ## Fatia 7 — Integração com o broker real
 
 - [ ] **T1** em nível I: o `POST` grava a nota e a solicitação chega à fila
-- [ ] **T3** em nível I: o resultado publicado aprova a nota
+- [ ] **C1** em nível I: o `worker` repassa a solicitação por HTTP a um provedor de teste e recebe `202`
+- [ ] **C3** em nível I: provedor de teste fora do ar leva a 3 retries e à DLQ da solicitação
+- [ ] **H1** em nível I: o callback assinado ao `invoice-webhook` publica o resultado na fila
+- [ ] **H6** em nível I: o mesmo callback enviado duas vezes atualiza a nota uma única vez
+- [ ] **T3** em nível I: o resultado, entregue pelo webhook assinado, aprova a nota
 - [ ] **T7** em nível I: reentrega **provocada pelo broker** (consumidor de teste fecha o canal sem `ack` e a mensagem volta com `redelivered = true`)
 - [ ] **T7** em nível I com o **consumer real**: interceptador de teste fora do retry lança requeue depois do commit, o broker reentrega, e a nota é atualizada uma única vez (mesmo `approvedAt`), com uma linha em `processed_messages` e a DLQ vazia
 - [ ] **T8** em nível I: chave inexistente vai para a DLQ
@@ -82,7 +118,7 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 Só verificação: nenhuma funcionalidade nova. Os prompts dos agentes serão definidos junto com o autor quando a fatia começar.
 
-- [ ] Agente de revisão de segurança (por exemplo, segredos, entradas, SQL, logs com dados sensíveis, imagens e Compose)
+- [ ] Agente de revisão de segurança (por exemplo, segredos, entradas, SQL, logs com dados sensíveis, imagens e Compose, e o webhook: HMAC em tempo constante, segredo fora dos logs, replay e SSRF)
 - [ ] Agente de revisão de boas práticas de código (arquitetura hexagonal, convenções do `CLAUDE.md`, código sem uso)
 - [ ] Revisão de aderência à spec (contratos, regras e cenários T1–T10 e E1–E10 cobertos)
 - [ ] Achados triados: corrigidos ou registrados como limitação
@@ -96,6 +132,8 @@ Só verificação: nenhuma funcionalidade nova. Os prompts dos agentes serão de
 - [ ] Como simular o provedor
 - [ ] Fluxo completo da nota
 - [ ] Contratos das duas mensagens
+- [ ] Contrato do webhook (HMAC, respostas) e da chamada HTTP ao provedor
+- [ ] Adaptação do enunciado: o provedor chama um webhook e quem publica o resultado na fila é o `invoice-webhook`
 - [ ] Estratégia de recuperação de falhas de publicação
 - [ ] Como a solução trata mensagens duplicadas e reentregas
 - [ ] Como a reentrega foi provocada no teste de integração
@@ -104,7 +142,7 @@ Só verificação: nenhuma funcionalidade nova. Os prompts dos agentes serão de
 
 ## Entrega
 
-- [ ] `docker compose up` sobe tudo do zero, sem contas externas
+- [ ] `docker compose up` sobe tudo do zero (seis serviços), sem contas externas
 - [ ] Build e todos os testes passam
 - [ ] Nenhum segredo versionado
 - [ ] Revisão final do código (por exemplo, `/code-review`)
