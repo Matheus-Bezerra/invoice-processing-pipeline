@@ -1,0 +1,26 @@
+# Simulador do provedor externo (spec, seção 6). Só HTTP: recebe a solicitação do worker e devolve o resultado
+# chamando o webhook assinado (HMAC-SHA256). Não usa broker nem banco.
+server:
+  port: 8083
+
+spring:
+  application:
+    name: provider-simulator
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+simulator:
+  webhook-url: ${WEBHOOK_URL:http://localhost:8082}
+  # Sem valor padrão de propósito: sem WEBHOOK_HMAC_SECRET o simulador não sobe (mesmo segredo do invoice-webhook).
+  hmac-secret: ${WEBHOOK_HMAC_SECRET:}
+  # Atraso entre o 202 e o callback.
+  delay: ${SIMULATOR_DELAY:300ms}
+  callback:
+    connect-timeout: ${SIMULATOR_CALLBACK_CONNECT_TIMEOUT:2s}
+    read-timeout: ${SIMULATOR_CALLBACK_READ_TIMEOUT:5s}
+    # Esperas antes de cada reenvio em 5xx, timeout ou conexão recusada (3 reenvios).
+    retry-waits: ${SIMULATOR_CALLBACK_RETRY_WAITS:1s,2s,4s}
