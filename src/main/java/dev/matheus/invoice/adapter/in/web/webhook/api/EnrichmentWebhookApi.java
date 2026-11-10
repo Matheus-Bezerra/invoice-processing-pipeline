@@ -1,5 +1,6 @@
-package dev.matheus.invoice.adapter.in.web.webhook;
+package dev.matheus.invoice.adapter.in.web.webhook.api;
 
+import dev.matheus.invoice.adapter.in.web.webhook.dto.EnrichmentResultRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Tag(name = "Webhook do provedor", description = "Recebe o resultado do enriquecimento enviado pelo provedor")
 @RequestMapping("/webhooks")
-interface EnrichmentWebhookApi {
+public interface EnrichmentWebhookApi {
 
     @Operation(summary = "Recebe o resultado do enriquecimento",
             description = "Só o provedor chama este endpoint. A assinatura HMAC-SHA256 do corpo bruto é conferida "

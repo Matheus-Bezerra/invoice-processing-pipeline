@@ -1,4 +1,4 @@
-package dev.matheus.invoice.adapter.in.web.webhook;
+package dev.matheus.invoice.adapter.in.web.webhook.exception;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;

@@ -1,5 +1,6 @@
-package dev.matheus.invoice.adapter.in.web.webhook;
+package dev.matheus.invoice.adapter.in.web.webhook.verification;
 
+import dev.matheus.invoice.adapter.in.web.webhook.exception.InvalidSignatureException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;

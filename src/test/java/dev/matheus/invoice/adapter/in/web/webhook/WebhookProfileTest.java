@@ -45,7 +45,7 @@ class WebhookProfileTest {
         assertThat(context.containsBean("outboxRelayJob")).isFalse();
         assertThat(context.containsBean("enrichmentResultConsumer")).isFalse();
         assertThat(context.containsBean("enrichmentRequestConsumer")).isFalse();
-        assertThat(context.getBeanNamesForType(EnrichmentWebhookController.class)).hasSize(1);
+        assertThat(context.containsBean("enrichmentWebhookController")).isTrue();
     }
 
     @Test

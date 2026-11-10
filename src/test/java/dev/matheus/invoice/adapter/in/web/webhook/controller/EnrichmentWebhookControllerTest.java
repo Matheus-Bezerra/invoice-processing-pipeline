@@ -1,5 +1,7 @@
-package dev.matheus.invoice.adapter.in.web.webhook;
+package dev.matheus.invoice.adapter.in.web.webhook.controller;
 
+import dev.matheus.invoice.adapter.in.web.webhook.verification.EnrichmentResultParser;
+import dev.matheus.invoice.adapter.in.web.webhook.verification.SignatureVerifier;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;

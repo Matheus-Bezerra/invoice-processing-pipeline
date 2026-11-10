@@ -1,5 +1,6 @@
-package dev.matheus.invoice.adapter.in.web.webhook;
+package dev.matheus.invoice.adapter.in.web.webhook.verification;
 
+import dev.matheus.invoice.adapter.in.web.webhook.exception.InvalidSignatureException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Profile("webhook")
-class SignatureVerifier {
+public class SignatureVerifier {
 
     private static final String ALGORITHM = "HmacSHA256";
     private static final String PREFIX = "sha256=";
@@ -26,14 +27,14 @@ class SignatureVerifier {
 
     private final SecretKeySpec key;
 
-    SignatureVerifier(@Value("${invoice.webhook.hmac-secret:}") String secret) {
+    public SignatureVerifier(@Value("${invoice.webhook.hmac-secret:}") String secret) {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException("A variável WEBHOOK_HMAC_SECRET é obrigatória no perfil webhook");
         }
         this.key = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), ALGORITHM);
     }
 
-    void verify(String header, byte[] body) {
+    public void verify(String header, byte[] body) {
         if (header == null || !header.startsWith(PREFIX)) {
             throw new InvalidSignatureException("Cabeçalho X-Signature ausente ou fora do formato sha256=<hex>");
         }

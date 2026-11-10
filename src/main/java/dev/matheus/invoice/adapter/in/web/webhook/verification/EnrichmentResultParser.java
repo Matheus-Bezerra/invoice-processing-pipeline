@@ -1,5 +1,7 @@
-package dev.matheus.invoice.adapter.in.web.webhook;
+package dev.matheus.invoice.adapter.in.web.webhook.verification;
 
+import dev.matheus.invoice.adapter.in.web.webhook.dto.EnrichmentResultRequest;
+import dev.matheus.invoice.adapter.in.web.webhook.exception.MalformedResultException;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -20,15 +22,15 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 @Profile("webhook")
 @RequiredArgsConstructor
-class EnrichmentResultParser {
+public class EnrichmentResultParser {
 
     /** Ids lidos do corpo, para as propriedades da mensagem. {@code correlationId} pode ser nulo. */
-    record ParsedResult(UUID messageId, UUID correlationId) {
+    public record ParsedResult(UUID messageId, UUID correlationId) {
     }
 
     private final JsonMapper jsonMapper;
 
-    ParsedResult parse(byte[] body) {
+    public ParsedResult parse(byte[] body) {
         EnrichmentResultRequest result;
         try {
             result = jsonMapper.readValue(body, EnrichmentResultRequest.class);

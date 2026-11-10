@@ -1,5 +1,8 @@
-package dev.matheus.invoice.adapter.in.web.webhook;
+package dev.matheus.invoice.adapter.in.web.webhook.controller;
 
+import dev.matheus.invoice.adapter.in.web.webhook.api.EnrichmentWebhookApi;
+import dev.matheus.invoice.adapter.in.web.webhook.verification.EnrichmentResultParser;
+import dev.matheus.invoice.adapter.in.web.webhook.verification.SignatureVerifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
