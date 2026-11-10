@@ -14,6 +14,8 @@ management:
         include: health
 
 simulator:
+  # Teto do corpo das requisições, conferido antes de ler o corpo (413 acima disso). O corpo real tem ~100 bytes.
+  max-body-bytes: ${SIMULATOR_MAX_BODY_BYTES:8192}
   webhook-url: ${WEBHOOK_URL:http://localhost:8082}
   # Sem valor padrão de propósito: sem WEBHOOK_HMAC_SECRET o simulador não sobe (mesmo segredo do invoice-webhook).
   hmac-secret: ${WEBHOOK_HMAC_SECRET:}
