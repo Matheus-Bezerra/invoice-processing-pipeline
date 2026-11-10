@@ -56,14 +56,57 @@ services:
     environment:
       <<: *app-env
       SPRING_PROFILES_ACTIVE: worker
+      PROVIDER_BASE_URL: ${PROVIDER_BASE_URL}
     ports:
       - "8081:8081"
-    # Espera a api para não disputar a execução das migrações Flyway na subida.
+    # Espera a api para não disputar a execução das migrações Flyway na subida, e o provedor para não mandar
+    # as primeiras solicitações para a DLQ.
     depends_on:
       api:
         condition: service_healthy
+      provider-simulator:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # Mesmo código e imagem de api e worker, no perfil webhook: só RabbitMQ, sem banco.
+  invoice-webhook:
+    build: .
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      WEBHOOK_HMAC_SECRET: ${WEBHOOK_HMAC_SECRET:?defina WEBHOOK_HMAC_SECRET no .env (veja o .env.example)}
+      SPRING_PROFILES_ACTIVE: webhook
+    ports:
+      - "8082:8082"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # Provedor externo simulado: projeto separado, só HTTP. Recebe a solicitação do worker e chama o webhook.
+  provider-simulator:
+    build: ./provider-simulator
+    environment:
+      WEBHOOK_URL: ${WEBHOOK_URL}
+      WEBHOOK_HMAC_SECRET: ${WEBHOOK_HMAC_SECRET:?defina WEBHOOK_HMAC_SECRET no .env (veja o .env.example)}
+    ports:
+      - "8083:8083"
+    depends_on:
+      invoice-webhook:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q '\"status\":\"UP\"'"]
       interval: 10s
       timeout: 5s
       retries: 12

@@ -1,4 +1,4 @@
-# Imagem única para api e worker; o papel é escolhido por SPRING_PROFILES_ACTIVE.
+# Imagem única para api, worker e invoice-webhook; o papel é escolhido por SPRING_PROFILES_ACTIVE.
 FROM eclipse-temurin:25-jdk AS build
 WORKDIR /workspace
 COPY .mvn/ .mvn/
