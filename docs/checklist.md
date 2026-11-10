@@ -128,19 +128,19 @@ Só verificação: nenhuma funcionalidade nova. Os prompts dos agentes serão de
 
 ## Fatia 9 — README
 
-- [ ] Como subir o ambiente
-- [ ] Como executar os testes
-- [ ] Como cadastrar e consultar uma nota
-- [ ] Como simular o provedor
-- [ ] Fluxo completo da nota
-- [ ] Contratos das duas mensagens
-- [ ] Contrato do webhook (HMAC, respostas) e da chamada HTTP ao provedor
-- [ ] Adaptação do enunciado: o provedor chama um webhook e quem publica o resultado na fila é o `invoice-webhook`
-- [ ] Estratégia de recuperação de falhas de publicação
-- [ ] Como a solução trata mensagens duplicadas e reentregas
-- [ ] Como a reentrega foi provocada no teste de integração
-- [ ] Decisões técnicas, limitações e itens deixados de fora
-- [ ] Registro de uso de IA (o que foi gerado e o que foi revisado ou corrigido)
+- [x] Como subir o ambiente
+- [x] Como executar os testes
+- [x] Como cadastrar e consultar uma nota
+- [x] Como simular o provedor
+- [x] Fluxo completo da nota
+- [x] Contratos das duas mensagens
+- [x] Contrato do webhook (HMAC, respostas) e da chamada HTTP ao provedor
+- [x] Adaptação do enunciado: o provedor chama um webhook e quem publica o resultado na fila é o `invoice-webhook`
+- [x] Estratégia de recuperação de falhas de publicação
+- [x] Como a solução trata mensagens duplicadas e reentregas
+- [x] Como a reentrega foi provocada no teste de integração
+- [x] Decisões técnicas, limitações e itens deixados de fora
+- [x] Registro de uso de IA (o que foi gerado e o que foi revisado ou corrigido)
 
 ## Entrega
 

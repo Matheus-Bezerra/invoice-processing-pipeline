@@ -476,3 +476,36 @@ Chamar a função de processamento duas vezes não prova reentrega: ela precisa 
 - **O que a IA fez:** cruzou todos os cenários da seção 7 (T1–T10, E1–E10, C1–C4, H1–H9) com os métodos de teste existentes. Todos têm teste no nível pedido, sem lacunas.
 - **Build final:** `./mvnw verify` com 228 testes, 0 falhas, `BUILD SUCCESS`; o simulador compila com `./mvnw package`.
 - **Para verificar:** a rastreabilidade é por nome de teste. T2, T4–T6, T10 e E1–E3, E6, E7, E9, E10 não levam o ID no nome, então a conferência foi semântica.
+
+## Fatia 9 — README
+
+### O que a IA gerou
+
+- O `README.md` reescrito do zero, enxuto (cerca de 200 linhas), com os detalhes longos em `<details>` e links para a spec e o `flow.md`.
+- Dois diagramas em SVG feitos à mão, sem Mermaid: `docs/images/fluxo.svg` (o caminho de uma nota em 8 passos) e `docs/images/resiliencia.svg` (outbox e relay, retry e DLQ, idempotência e as verificações do webhook). São cartões com fundo próprio, legíveis nos temas claro e escuro do GitHub. Foram conferidos renderizando no Chrome headless.
+- Capturas do Swagger da `api` e do `invoice-webhook` (`docs/images/swagger-*.png`), feitas com o Chrome headless.
+- `OpenApiConfig` (perfis `api` e `webhook`): o Swagger mostrava o título padrão "OpenAPI definition v0" e passou a ter título e descrição em português. O H7 também confere o título.
+
+### Decisões tomadas com o autor
+
+- O projeto passa a se chamar **FiscalFlow**, no nome exibido (README, docs, diagramas e Swagger) e no artefato (`artifactId` e `spring.application.name` `fiscal-flow`, `Dockerfile`). O pacote `dev.matheus.invoice` e os nomes técnicos (serviços, filas e tabelas) continuam, porque descrevem o domínio.
+- Duas imagens em vez de uma, sem captura do painel do RabbitMQ (o diagrama já mostra as filas), e um README curto.
+
+### Verificação executada
+
+- No Compose real, foram executados os comandos do README:
+  - `POST` → `201 IN_ANALYSIS` → `APPROVED` em cerca de 1,5s;
+  - chave repetida dá `200`, e chave inválida dá `400`;
+  - com o simulador parado, o callback assinado à mão com `openssl` e `cancelled: true` dá `202`, e a nota fica `REJECTED` ("Nota cancelada pelo emitente"); sem assinatura, dá `401`.
+- Os links relativos do README foram conferidos.
+
+### Correção do `3xx` do provedor (pedido do autor)
+
+- **Problema:** o client desligava o redirecionamento (`Redirect.NEVER`), mas o `RestClient` só trata `4xx` e `5xx` como erro. Com isso, um `3xx` era aceito como sucesso: a solicitação recebia `ack`, nenhum resultado chegava e a nota ficava em `IN_ANALYSIS` para sempre. A nota da fatia 6A ("`3xx` conta como falha técnica") estava errada.
+- **Correção:** o `ProviderHttpClient` confere o status da resposta, e qualquer status fora de `2xx` vira `ProviderUnavailableException`, ou seja, retry e depois DLQ. O teste `redirectIsTechnicalFailureAndIsNotFollowed` (301, 302, 307 e 308) falhou antes da correção e passa depois. Spec (3.4 e 4.8), `flow.md`, `CLAUDE.md` e README atualizados, e a limitação foi retirada do README.
+
+### Validação do `.env` (pedido do autor depois da fatia 9)
+
+- **Problema:** só o `WEBHOOK_HMAC_SECRET` era obrigatório no Compose. Com outra variável ausente (por exemplo, num `.env` antigo), o Compose trocava o valor por vazio, só avisava e subia containers quebrados.
+- **Correção:** todas as variáveis do `docker-compose.yml` passaram a usar `${VAR:?defina VAR no .env (veja o .env.example)}`. O README ganhou uma tabela com as 9 variáveis e para que serve cada uma.
+- **Verificado:** `docker compose config` passa com o `.env` completo. Sem `RABBITMQ_PASSWORD`, ou com `PROVIDER_BASE_URL` vazio, o comando falha com a mensagem e nenhum container é criado. As variáveis do Compose são as mesmas 9 do `.env.example`.

@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 760" width="1140" height="760" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Resiliência: outbox, retry, DLQ, idempotência e webhook</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#424a53"/></marker>
+    <style>
+      .title { font-size: 22px; font-weight: 700; fill: #1f2328; }
+      .subtitle { font-size: 14px; fill: #59636e; }
+      .ptitle { font-size: 16px; font-weight: 700; fill: #1f2328; }
+      .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+      .chip { font-size: 12.5px; fill: #1f2328; }
+      .chip-b { font-size: 12.5px; font-weight: 700; fill: #1f2328; }
+      .note { font-size: 12.5px; fill: #59636e; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .edge { stroke: #424a53; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .big { font-size: 20px; font-weight: 800; }
+    </style>
+  </defs>
+  <rect x="1" y="1" width="1138" height="758" rx="16" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
+  <text x="40" y="52" class="title">Quando algo dá errado</text>
+  <text x="40" y="76" class="subtitle">Nenhuma nota se perde, nenhum resultado é aplicado duas vezes e mensagens ruins vão para a DLQ</text>
+  <rect x="30" y="100" width="525" height="310" rx="12" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+  <rect x="30" y="114" width="4" height="40" rx="2" fill="#0969da"/>
+  <text x="50" y="130" class="tag" text-anchor="start" fill="#0969da">FALHA AO PUBLICAR</text>
+  <text x="50" y="150" class="ptitle" text-anchor="start">Outbox + relay: a solicitação nunca se perde</text>
+  <rect x="50" y="180" width="150" height="52" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+  <text x="125.0" y="202.0" class="chip" text-anchor="middle">api grava a nota</text>
+  <text x="125.0" y="219.0" class="chip" text-anchor="middle">+ linha do outbox</text>
+  <path d="M200,206 L230,206" class="edge"/>
+  <rect x="232" y="180" width="140" height="52" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+  <text x="302.0" y="202.0" class="chip" text-anchor="middle">publica após</text>
+  <text x="302.0" y="219.0" class="chip" text-anchor="middle">o commit</text>
+  <path d="M372,206 L402,206" class="edge"/>
+  <rect x="404" y="180" width="131" height="52" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="1.4"/>
+  <text x="469.5" y="202.0" class="chip-b" text-anchor="middle">✗ broker fora</text>
+  <text x="469.5" y="219.0" class="chip" text-anchor="middle">cliente recebe 201</text>
+  <path d="M469,232 V256 H125 V278" class="edge"/>
+  <text x="300" y="250" class="note" text-anchor="middle">a linha continua no outbox</text>
+  <rect x="50" y="280" width="150" height="52" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+  <text x="125.0" y="302.0" class="chip-b" text-anchor="middle">relay a cada 5s</text>
+  <text x="125.0" y="319.0" class="chip" text-anchor="middle">lote de 50</text>
+  <path d="M200,306 L230,306" class="edge"/>
+  <rect x="232" y="280" width="140" height="52" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+  <text x="302.0" y="302.0" class="chip" text-anchor="middle"><tspan class="mono">FOR UPDATE</tspan></text>
+  <text x="302.0" y="319.0" class="chip" text-anchor="middle"><tspan class="mono">SKIP LOCKED</tspan></text>
+  <path d="M372,306 L402,306" class="edge"/>
+  <rect x="404" y="280" width="131" height="52" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.4"/>
+  <text x="469.5" y="302.0" class="chip" text-anchor="middle">confirmou:</text>
+  <text x="469.5" y="319.0" class="chip-b" text-anchor="middle">apaga a linha</text>
+  <text x="50" y="366" class="note" text-anchor="start">Falhou de novo? <tspan class="mono">attempts + 1</tspan> e espera 2s, 4s, 8s … até 60s.</text>
+  <text x="50" y="386" class="note" text-anchor="start">O relay nunca desiste. Dois relays nunca pegam a mesma linha.</text>
+  <rect x="585" y="100" width="525" height="310" rx="12" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+  <rect x="585" y="114" width="4" height="40" rx="2" fill="#cf222e"/>
+  <text x="605" y="130" class="tag" text-anchor="start" fill="#cf222e">MENSAGEM COM PROBLEMA</text>
+  <text x="605" y="150" class="ptitle" text-anchor="start">Retry, DLQ ou ack: cada caso tem um destino</text>
+  <rect x="605" y="240" width="110" height="60" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+  <text x="660.0" y="266.0" class="chip-b" text-anchor="middle">mensagem</text>
+  <text x="660.0" y="283.0" class="chip" text-anchor="middle">no worker</text>
+  <path d="M715,270 C740,270 735,195 763,195" class="edge"/>
+  <rect x="765" y="170" width="170" height="50" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.4"/>
+  <text x="850.0" y="191.0" class="chip-b" text-anchor="middle">erro técnico</text>
+  <text x="850.0" y="208.0" class="chip" text-anchor="middle">banco fora · 5xx · timeout</text>
+  <path d="M935,195 L957,195" class="edge"/>
+  <rect x="959" y="170" width="131" height="50" rx="8" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.4"/>
+  <text x="1024.5" y="191.0" class="chip-b" text-anchor="middle">retry 2s → 4s → 8s</text>
+  <text x="1024.5" y="208.0" class="chip" text-anchor="middle">depois DLQ</text>
+  <path d="M715,270 C740,270 735,270 763,270" class="edge"/>
+  <rect x="765" y="245" width="170" height="50" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.4"/>
+  <text x="850.0" y="266.0" class="chip-b" text-anchor="middle">malformada · chave</text>
+  <text x="850.0" y="283.0" class="chip-b" text-anchor="middle">inexistente · 4xx</text>
+  <path d="M935,270 L957,270" class="edge"/>
+  <rect x="959" y="245" width="131" height="50" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="1.4"/>
+  <text x="1024.5" y="266.0" class="chip-b" text-anchor="middle">DLQ direto</text>
+  <text x="1024.5" y="283.0" class="chip" text-anchor="middle">sem retry</text>
+  <path d="M715,270 C740,270 735,345 763,345" class="edge"/>
+  <rect x="765" y="320" width="170" height="50" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.4"/>
+  <text x="850.0" y="341.0" class="chip-b" text-anchor="middle">duplicada ou nota</text>
+  <text x="850.0" y="358.0" class="chip-b" text-anchor="middle">já finalizada</text>
+  <path d="M935,345 L957,345" class="edge"/>
+  <rect x="959" y="320" width="131" height="50" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.4"/>
+  <text x="1024.5" y="341.0" class="chip-b" text-anchor="middle"><tspan class="mono">ack</tspan> + log</text>
+  <text x="1024.5" y="358.0" class="chip" text-anchor="middle">nada muda</text>
+  <text x="605" y="392" class="note" text-anchor="start">Nas duas filas (solicitação e resultado), com <tspan class="mono">prefetch = 1</tspan>. Duplicata só no resultado.</text>
+  <rect x="30" y="430" width="525" height="310" rx="12" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+  <rect x="30" y="444" width="4" height="40" rx="2" fill="#1a7f37"/>
+  <text x="50" y="460" class="tag" text-anchor="start" fill="#1a7f37">MENSAGEM DUPLICADA OU REENTREGUE</text>
+  <text x="50" y="480" class="ptitle" text-anchor="start">Idempotência: o resultado é aplicado uma vez só</text>
+  <rect x="50" y="540" width="120" height="70" rx="8" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+  <text x="110.0" y="562.5" class="chip" text-anchor="middle">mesmo</text>
+  <text x="110.0" y="579.5" class="chip-b" text-anchor="middle"><tspan class="mono">messageId</tspan></text>
+  <text x="110.0" y="596.5" class="chip" text-anchor="middle">chega 2×</text>
+  <path d="M170,575 L198,575" class="edge"/>
+  <rect x="200" y="510" width="335" height="130" rx="8" fill="#ffffff" stroke="#1a7f37" stroke-width="1.4"/>
+  <text x="214" y="532" class="tag" text-anchor="start" fill="#1a7f37">UMA TRANSAÇÃO</text>
+  <text x="214" y="558" class="chip" text-anchor="start">1. trava a nota: <tspan class="mono">SELECT … FOR UPDATE</tspan></text>
+  <text x="214" y="580" class="chip" text-anchor="start">2. registra <tspan class="mono">processed_messages(message_id)</tspan></text>
+  <text x="214" y="602" class="chip" text-anchor="start">3. <tspan class="mono">UPDATE … WHERE status = 'IN_ANALYSIS'</tspan></text>
+  <text x="214" y="624" class="chip-b" text-anchor="start">Se o <tspan class="mono">messageId</tspan> já existe: <tspan class="mono">ack</tspan>, nada muda.</text>
+  <text x="50" y="678" class="note" text-anchor="start">Testado com reentrega real do RabbitMQ: canal fechado sem <tspan class="mono">ack</tspan></text>
+  <text x="50" y="698" class="note" text-anchor="start">e <tspan class="mono">nack</tspan> com requeue depois do commit. A nota mantém o mesmo <tspan class="mono">approvedAt</tspan>.</text>
+  <rect x="585" y="430" width="525" height="310" rx="12" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.2"/>
+  <rect x="585" y="444" width="4" height="40" rx="2" fill="#bc4c00"/>
+  <text x="605" y="460" class="tag" text-anchor="start" fill="#bc4c00">CALLBACK DO PROVEDOR</text>
+  <text x="605" y="480" class="ptitle" text-anchor="start">invoice-webhook: quatro portões, nesta ordem</text>
+  <rect x="605" y="512" width="110" height="96" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="1.4"/>
+  <text x="660.0" y="544" class="big mono" text-anchor="middle" fill="#cf222e">413</text>
+  <text x="660.0" y="570" class="chip-b" text-anchor="middle">corpo > 64 KB</text>
+  <text x="660.0" y="588" class="chip" text-anchor="middle">lido com teto</text>
+  <path d="M715,560 L728,560" class="edge"/>
+  <rect x="730" y="512" width="110" height="96" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="1.4"/>
+  <text x="785.0" y="544" class="big mono" text-anchor="middle" fill="#cf222e">401</text>
+  <text x="785.0" y="570" class="chip-b" text-anchor="middle">assinatura</text>
+  <text x="785.0" y="588" class="chip" text-anchor="middle">HMAC inválido</text>
+  <path d="M840,560 L853,560" class="edge"/>
+  <rect x="855" y="512" width="110" height="96" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="1.4"/>
+  <text x="910.0" y="544" class="big mono" text-anchor="middle" fill="#cf222e">400</text>
+  <text x="910.0" y="570" class="chip-b" text-anchor="middle">payload</text>
+  <text x="910.0" y="588" class="chip" text-anchor="middle">malformado</text>
+  <path d="M965,560 L978,560" class="edge"/>
+  <rect x="980" y="512" width="110" height="96" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.4"/>
+  <text x="1035.0" y="544" class="big mono" text-anchor="middle" fill="#1a7f37">202</text>
+  <text x="1035.0" y="570" class="chip-b" text-anchor="middle">publicado</text>
+  <text x="1035.0" y="588" class="chip" text-anchor="middle">com confirm</text>
+  <text x="605" y="644" class="note" text-anchor="start">Broker sem confirmação (<tspan class="mono">nack</tspan>, timeout ou devolução) → <tspan class="mono">503</tspan>, e o provedor reenvia.</text>
+  <text x="605" y="666" class="note" text-anchor="start">Comparação em tempo constante, sobre os bytes recebidos. Sem banco e</text>
+  <text x="605" y="686" class="note" text-anchor="start">sem regra de negócio: quem aprova ou rejeita é o <tspan class="mono">worker</tspan>.</text>
+</svg>

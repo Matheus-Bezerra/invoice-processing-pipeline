@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 700" width="1140" height="700" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Fluxo de uma nota no FiscalFlow</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#424a53"/>
+    </marker>
+    <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8c959f"/>
+    </marker>
+    <style>
+      .title { font-size: 22px; font-weight: 700; fill: #1f2328; }
+      .subtitle { font-size: 14px; fill: #59636e; }
+      .name { font-size: 15px; font-weight: 700; fill: #1f2328; }
+      .detail { font-size: 12px; fill: #59636e; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .tag { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
+      .edge { stroke: #424a53; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .reply { stroke: #8c959f; stroke-width: 1.6; fill: none; stroke-dasharray: 5 4; marker-end: url(#arrow-muted); }
+      .edge-label { font-size: 12px; fill: #424a53; }
+      .badge circle { fill: #1f2328; }
+      .badge text { font-size: 12px; font-weight: 700; fill: #ffffff; text-anchor: middle; dominant-baseline: central; }
+      .legend { font-size: 13px; fill: #1f2328; }
+      .legend-num { font-size: 12px; font-weight: 700; fill: #ffffff; text-anchor: middle; dominant-baseline: central; }
+    </style>
+  </defs>
+
+  <!-- cartão -->
+  <rect x="1" y="1" width="1138" height="698" rx="16" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
+
+  <text x="40" y="52" class="title">FiscalFlow</text>
+  <text x="40" y="76" class="subtitle">O caminho de uma nota: da chave de acesso até APPROVED ou REJECTED, sem o cliente esperar o provedor</text>
+
+  <!-- ===== linha de cima ===== -->
+
+  <!-- Cliente -->
+  <rect x="30" y="150" width="120" height="76" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.5"/>
+  <text x="90" y="184" class="name" text-anchor="middle">Cliente</text>
+  <text x="90" y="204" class="detail mono" text-anchor="middle">HTTP</text>
+
+  <!-- api -->
+  <rect x="220" y="140" width="170" height="96" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+  <text x="305" y="166" class="tag mono" fill="#0969da" text-anchor="middle">PERFIL api · :8080</text>
+  <text x="305" y="191" class="name mono" text-anchor="middle">api</text>
+  <text x="305" y="212" class="detail" text-anchor="middle">cadastra e consulta</text>
+
+  <!-- fila de solicitação -->
+  <text x="540" y="150" class="tag" fill="#1a7f37" text-anchor="middle">RABBITMQ</text>
+  <rect x="450" y="158" width="180" height="60" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+  <line x1="606" y1="166" x2="606" y2="210" stroke="#1a7f37" stroke-width="1" opacity="0.5"/>
+  <line x1="614" y1="166" x2="614" y2="210" stroke="#1a7f37" stroke-width="1" opacity="0.5"/>
+  <line x1="622" y1="166" x2="622" y2="210" stroke="#1a7f37" stroke-width="1" opacity="0.5"/>
+  <text x="527" y="185" class="detail mono" fill="#1f2328" text-anchor="middle">invoice.</text>
+  <text x="527" y="201" class="detail mono" fill="#1f2328" text-anchor="middle">enrichment.request</text>
+
+  <!-- worker (solicitação) -->
+  <rect x="680" y="140" width="170" height="96" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.5"/>
+  <text x="765" y="166" class="tag mono" fill="#8250df" text-anchor="middle">PERFIL worker</text>
+  <text x="765" y="191" class="name mono" text-anchor="middle">worker</text>
+  <text x="765" y="212" class="detail" text-anchor="middle">consumer de solicitação</text>
+
+  <!-- provedor -->
+  <rect x="915" y="140" width="195" height="96" rx="10" fill="#f6f8fa" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="1012" y="166" class="tag" fill="#6e7781" text-anchor="middle">PROVEDOR EXTERNO (FAKE)</text>
+  <text x="1012" y="191" class="name mono" text-anchor="middle">provider-simulator</text>
+  <text x="1012" y="212" class="detail" text-anchor="middle">:8083 · só HTTP</text>
+
+  <!-- ===== linha de baixo ===== -->
+
+  <!-- Postgres (cilindro) -->
+  <path d="M220,392 v84 a85,14 0 0 0 170,0 v-84" fill="#e6f6f6" stroke="#1b7c83" stroke-width="1.5"/>
+  <ellipse cx="305" cy="392" rx="85" ry="14" fill="#f2fbfb" stroke="#1b7c83" stroke-width="1.5"/>
+  <text x="305" y="428" class="name" text-anchor="middle">PostgreSQL</text>
+  <text x="305" y="448" class="detail mono" text-anchor="middle">invoices · outbox</text>
+  <text x="305" y="464" class="detail mono" text-anchor="middle">processed_messages</text>
+
+  <!-- worker (resultado) -->
+  <rect x="450" y="380" width="170" height="96" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="1.5"/>
+  <text x="535" y="406" class="tag mono" fill="#8250df" text-anchor="middle">PERFIL worker</text>
+  <text x="535" y="431" class="name mono" text-anchor="middle">worker</text>
+  <text x="535" y="452" class="detail" text-anchor="middle">consumer de resultado</text>
+
+  <!-- fila de resultado -->
+  <text x="765" y="390" class="tag" fill="#1a7f37" text-anchor="middle">RABBITMQ</text>
+  <rect x="675" y="398" width="180" height="60" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+  <line x1="683" y1="406" x2="683" y2="450" stroke="#1a7f37" stroke-width="1" opacity="0.5"/>
+  <line x1="691" y1="406" x2="691" y2="450" stroke="#1a7f37" stroke-width="1" opacity="0.5"/>
+  <line x1="699" y1="406" x2="699" y2="450" stroke="#1a7f37" stroke-width="1" opacity="0.5"/>
+  <text x="778" y="425" class="detail mono" fill="#1f2328" text-anchor="middle">invoice.</text>
+  <text x="778" y="441" class="detail mono" fill="#1f2328" text-anchor="middle">enrichment.result</text>
+
+  <!-- invoice-webhook -->
+  <rect x="915" y="380" width="195" height="96" rx="10" fill="#fff1e5" stroke="#bc4c00" stroke-width="1.5"/>
+  <text x="1012" y="406" class="tag mono" fill="#bc4c00" text-anchor="middle">PERFIL webhook · :8082</text>
+  <text x="1012" y="431" class="name mono" text-anchor="middle">invoice-webhook</text>
+  <text x="1012" y="452" class="detail" text-anchor="middle">valida HMAC · sem banco</text>
+
+  <!-- ===== setas ===== -->
+
+  <!-- 1 Cliente -> api -->
+  <path d="M150,178 H218" class="edge"/>
+  <g class="badge"><circle cx="184" cy="160" r="12"/><text x="184" y="160">1</text></g>
+  <!-- resposta 201 -->
+  <path d="M220,212 H152" class="reply"/>
+  <text x="186" y="232" class="edge-label mono" text-anchor="middle" fill="#6e7781">201</text>
+
+  <!-- 2 api -> Postgres -->
+  <path d="M305,236 V376" class="edge"/>
+  <g class="badge"><circle cx="305" cy="300" r="12"/><text x="305" y="300">2</text></g>
+  <text x="326" y="292" class="edge-label">nota + outbox</text>
+  <text x="326" y="308" class="edge-label">na mesma transação</text>
+
+  <!-- 3 api -> fila de solicitação -->
+  <path d="M390,188 H448" class="edge"/>
+  <g class="badge"><circle cx="419" cy="170" r="12"/><text x="419" y="170">3</text></g>
+
+  <!-- 4 fila -> worker -->
+  <path d="M630,188 H678" class="edge"/>
+  <g class="badge"><circle cx="654" cy="170" r="12"/><text x="654" y="170">4</text></g>
+
+  <!-- 5 worker -> provedor -->
+  <path d="M850,178 H913" class="edge"/>
+  <g class="badge"><circle cx="882" cy="160" r="12"/><text x="882" y="160">5</text></g>
+  <path d="M915,212 H852" class="reply"/>
+  <text x="882" y="232" class="edge-label mono" text-anchor="middle" fill="#6e7781">202</text>
+
+  <!-- 6 provedor -> webhook -->
+  <path d="M1012,236 V378" class="edge"/>
+  <g class="badge"><circle cx="1012" cy="300" r="12"/><text x="1012" y="300">6</text></g>
+  <text x="1000" y="292" class="edge-label" text-anchor="end">callback assinado</text>
+  <text x="1000" y="308" class="edge-label mono" text-anchor="end">X-Signature: sha256=…</text>
+
+  <!-- 7 webhook -> fila de resultado -->
+  <path d="M915,428 H857" class="edge"/>
+  <g class="badge"><circle cx="885" cy="410" r="12"/><text x="885" y="410">7</text></g>
+
+  <!-- fila de resultado -> worker -->
+  <path d="M675,428 H622" class="edge"/>
+
+  <!-- 8 worker -> Postgres -->
+  <path d="M450,428 H392" class="edge"/>
+  <g class="badge"><circle cx="421" cy="410" r="12"/><text x="421" y="410">8</text></g>
+
+  <!-- ===== legenda ===== -->
+  <line x1="40" y1="512" x2="1100" y2="512" stroke="#d0d7de" stroke-width="1"/>
+
+  <g>
+    <circle cx="52" cy="545" r="11" fill="#1f2328"/><text x="52" y="545" class="legend-num">1</text>
+    <text x="72" y="549" class="legend">Cliente envia <tspan class="mono">POST /invoices</tspan> com a chave de 44 dígitos</text>
+
+    <circle cx="52" cy="580" r="11" fill="#1f2328"/><text x="52" y="580" class="legend-num">2</text>
+    <text x="72" y="584" class="legend">Nota em <tspan class="mono">IN_ANALYSIS</tspan> + linha do outbox, numa transação → <tspan class="mono">201</tspan></text>
+
+    <circle cx="52" cy="615" r="11" fill="#1f2328"/><text x="52" y="615" class="legend-num">3</text>
+    <text x="72" y="619" class="legend">Após o commit, publica a solicitação (<tspan font-style="italic">publisher confirm</tspan>)</text>
+
+    <circle cx="52" cy="650" r="11" fill="#1f2328"/><text x="52" y="650" class="legend-num">4</text>
+    <text x="72" y="654" class="legend">O <tspan class="mono">worker</tspan> consome a solicitação</text>
+
+    <circle cx="592" cy="545" r="11" fill="#1f2328"/><text x="592" y="545" class="legend-num">5</text>
+    <text x="612" y="549" class="legend">… e chama o provedor por HTTP, que responde <tspan class="mono">202</tspan> sem dados</text>
+
+    <circle cx="592" cy="580" r="11" fill="#1f2328"/><text x="592" y="580" class="legend-num">6</text>
+    <text x="612" y="584" class="legend">O provedor devolve o resultado num callback com HMAC-SHA256</text>
+
+    <circle cx="592" cy="615" r="11" fill="#1f2328"/><text x="592" y="615" class="legend-num">7</text>
+    <text x="612" y="619" class="legend">O webhook confere a assinatura e publica o resultado na fila</text>
+
+    <circle cx="592" cy="650" r="11" fill="#1f2328"/><text x="592" y="650" class="legend-num">8</text>
+    <text x="612" y="654" class="legend">O <tspan class="mono">worker</tspan> decide: <tspan class="mono" font-weight="700" fill="#1a7f37">APPROVED</tspan> ou <tspan class="mono" font-weight="700" fill="#cf222e">REJECTED</tspan> (uma vez só)</text>
+  </g>
+
+  <text x="1100" y="686" class="detail" text-anchor="end"><tspan class="mono">api</tspan>, <tspan class="mono">worker</tspan> e <tspan class="mono">invoice-webhook</tspan>: mesmo código e mesma imagem, perfis Spring diferentes · tracejado = resposta</text>
+</svg>
