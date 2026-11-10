@@ -8,9 +8,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import jakarta.servlet.FilterChain;
@@ -23,24 +20,24 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Limita o tamanho do corpo das requisições da {@code api} antes de o Spring desserializar o JSON, para que um corpo
- * enorme não esgote a memória. O Tomcat só limita corpos de formulário, não {@code application/json}.
+ * Limita o tamanho do corpo das requisições antes de o Spring desserializar o JSON, para que um corpo enorme não
+ * esgote a memória. O Tomcat só limita corpos de formulário, não {@code application/json}. A {@code api} e o webhook
+ * usam o mesmo filtro, cada um com o seu teto (ver {@code BodySizeLimitConfig}). No webhook ele roda antes da
+ * verificação da assinatura.
  *
  * <p>Com {@code Content-Length} acima do teto, responde {@code 413} sem ler nada. Sem {@code Content-Length}
  * (<i>chunked</i>), lê no máximo {@code teto + 1} bytes e devolve o corpo lido ao resto da cadeia.
  */
 @Slf4j
-@Component
-@Profile("api")
 public class BodySizeLimitFilter extends OncePerRequestFilter {
 
     private static final Set<String> METHODS_WITH_BODY = Set.of("POST", "PUT", "PATCH");
 
     private final int maxBytes;
 
-    public BodySizeLimitFilter(@Value("${invoice.api.max-body-bytes}") int maxBytes) {
+    public BodySizeLimitFilter(int maxBytes) {
         if (maxBytes <= 0) {
-            throw new IllegalStateException("invoice.api.max-body-bytes precisa ser maior que zero");
+            throw new IllegalStateException("O limite de tamanho do corpo precisa ser maior que zero");
         }
         this.maxBytes = maxBytes;
     }

@@ -121,7 +121,7 @@ Ordem de verificação: tamanho do corpo, assinatura, payload e publicação.
 
 Garantias:
 
-- O corpo é lido com teto de tamanho (no máximo limite + 1 bytes) antes da assinatura. Um corpo enorme nunca é carregado inteiro na memória. O envelope real tem menos de 1 KB.
+- O teto é aplicado por um filtro (`BodySizeLimitFilter`, o mesmo da `api`, com o limite do webhook) antes do controller e da assinatura: `Content-Length` acima do limite é recusado sem ler nada, e sem `Content-Length` (*chunked*) lê no máximo limite + 1 bytes. Um corpo enorme nunca é carregado inteiro na memória. O envelope real tem menos de 1 KB.
 - A assinatura é comparada em tempo constante e sobre os bytes exatos recebidos, antes de qualquer parse do JSON.
 - A `payload.accessKey` também é conferida no formato (44 dígitos), a mesma regra do consumer de resultado: chave fora do formato recebe `400` já no webhook.
 - O webhook **não valida regra de negócio** (CNPJ, valor, cancelamento): só o formato da mensagem. A decisão de aprovar ou rejeitar continua no consumer do resultado.

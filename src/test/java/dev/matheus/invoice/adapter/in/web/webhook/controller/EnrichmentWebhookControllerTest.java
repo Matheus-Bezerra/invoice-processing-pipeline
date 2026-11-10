@@ -1,7 +1,7 @@
 package dev.matheus.invoice.adapter.in.web.webhook.controller;
 
 import dev.matheus.invoice.adapter.in.web.webhook.verification.EnrichmentResultParser;
-import dev.matheus.invoice.adapter.in.web.webhook.verification.LimitedBodyReader;
+import dev.matheus.invoice.config.BodySizeLimitConfig;
 import dev.matheus.invoice.adapter.in.web.webhook.verification.SignatureVerifier;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -39,7 +39,7 @@ import dev.matheus.invoice.application.service.provider.PublishEnrichmentResultC
 /** Nível W: webhook do provedor (H1 a H5 e H9). A ordem de verificação é tamanho, assinatura, payload e publicação. */
 @WebMvcTest(value = EnrichmentWebhookController.class, properties = "invoice.webhook.hmac-secret=segredo-de-teste")
 @ActiveProfiles("webhook")
-@Import({LimitedBodyReader.class, SignatureVerifier.class, EnrichmentResultParser.class})
+@Import({BodySizeLimitConfig.class, SignatureVerifier.class, EnrichmentResultParser.class})
 class EnrichmentWebhookControllerTest {
 
     private static final String SECRET = "segredo-de-teste";

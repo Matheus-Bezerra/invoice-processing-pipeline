@@ -1,11 +1,11 @@
 package dev.matheus.invoice.adapter.in.web.webhook.api;
 
 import dev.matheus.invoice.adapter.in.web.webhook.dto.EnrichmentResultRequest;
-import java.io.InputStream;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -49,8 +49,9 @@ public interface EnrichmentWebhookApi {
                     schema = @Schema(implementation = ProblemDetail.class)))
     @PostMapping(path = "/enrichment-results", consumes = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<Void> receive(
-            // Corpo lido como stream, com teto de tamanho, antes do HMAC. Documentado em requestBody acima.
-            @Parameter(hidden = true) InputStream body,
+            // Bytes exatos recebidos (a assinatura é sobre eles), já com o teto de tamanho aplicado pelo filtro.
+            // Documentado em requestBody acima.
+            @RequestBody(required = false) @Parameter(hidden = true) byte[] body,
             @Parameter(description = "Assinatura do corpo bruto: sha256=<HMAC-SHA256 em hexadecimal, 64 caracteres> "
                     + "calculado com o segredo compartilhado", example = "sha256=9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
             @RequestHeader(name = "X-Signature", required = false) String signature);
