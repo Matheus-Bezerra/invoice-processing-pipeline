@@ -509,3 +509,34 @@ Chamar a função de processamento duas vezes não prova reentrega: ela precisa 
 - **Problema:** só o `WEBHOOK_HMAC_SECRET` era obrigatório no Compose. Com outra variável ausente (por exemplo, num `.env` antigo), o Compose trocava o valor por vazio, só avisava e subia containers quebrados.
 - **Correção:** todas as variáveis do `docker-compose.yml` passaram a usar `${VAR:?defina VAR no .env (veja o .env.example)}`. O README ganhou uma tabela com as 9 variáveis e para que serve cada uma.
 - **Verificado:** `docker compose config` passa com o `.env` completo. Sem `RABBITMQ_PASSWORD`, ou com `PROVIDER_BASE_URL` vazio, o comando falha com a mensagem e nenhum container é criado. As variáveis do Compose são as mesmas 9 do `.env.example`.
+
+## Entrega
+
+### Verificação executada
+
+- **Compose do zero:** `docker compose down -v --rmi local` (sem volumes e sem as imagens do projeto) e depois `docker compose up --build`. Os seis serviços ficaram `healthy` em 43s, os quatro `/actuator/health` responderam `UP`, e uma nota nova foi de `201` a `APPROVED` em cerca de 1s.
+- **Segredos:** o `.env` nunca foi versionado e está no `.gitignore`. O histórico (`git log --all -p`) não tem chaves AWS, tokens do GitHub ou da OpenAI, chaves privadas nem tokens do Slack. Os únicos segredos no código são os de exemplo (`*_dev_only`) e os de teste. O `.env` local tem os mesmos valores do `.env.example`.
+- **Repositório:** publicado em `github.com/Matheus-Bezerra/invoice-processing-pipeline`, público, com `origin/main` igual ao `main` local antes das correções desta etapa.
+- **Build final:** `./mvnw verify` com 234 testes, 0 falhas, `BUILD SUCCESS` (os 4 testes de `3xx`, os 2 de `408`/`429` e os de antes). O simulador compila com `./mvnw package`.
+
+### Revisão final (`/code-review`)
+
+- **O que a IA gerou:** uma revisão de `src`, `provider-simulator/src`, `docker-compose.yml` e `Dockerfile`, com 10 achados não verificados. A IA conferiu no código os mais graves antes da triagem.
+- **Corrigidos (decisão do autor):**
+  - **#5:** `408` e `429` do provedor iam direto para a DLQ, como todo `4xx`. Agora são falha técnica (retry e depois DLQ). Teste `temporaryClientErrorIsTechnicalFailure` escrito primeiro e confirmado vermelho. Spec (3.4, 4.8), `flow.md`, `CLAUDE.md` e README atualizados.
+  - **#8:** as três cópias idênticas de `readFailure` (dois consumers e o parser do webhook), que impedem o valor recebido de vazar para log ou resposta, viraram `shared/JsonReadFailure`. Só refatoração, coberta pelos testes existentes.
+- **Registrados como limitação ou dívida técnica (README e spec, seção 12):**
+  - #3: o lote do relay é uma transação só;
+  - #1 e #7: dedup antes de agendar e pool de 2 threads, ambos no simulador;
+  - #6: disputa entre a publicação imediata e o relay;
+  - #9 e #10: configuração dos consumers e teto do corpo duplicados (corrigidos depois, ver abaixo).
+- **Já documentados antes:** #2 (reenvios do callback esgotados) e #4 (transação aberta durante a publicação do relay).
+
+### Duplicações da revisão final (#9 e #10, pedido do autor)
+
+- **#9:** `RequestConsumerConfig` e `ResultConsumerConfig` tinham o mesmo corpo (ack automático, `prefetch = 1`, sem requeue e o retry). A criação do container foi para `ListenerRetry.containerFactory`, e cada config ficou só com o `@Value` do prefixo da sua fila. Os nomes dos beans (`requestListenerContainerFactory` e `resultListenerContainerFactory`) não mudaram, então o teste que põe o interceptador fora do retry continua valendo.
+- **#10:** o `LimitedBodyReader` do webhook repetia o teto do `BodySizeLimitFilter` da `api`. O filtro virou uma classe sem `@Component`, registrada por `config/BodySizeLimitConfig` com um bean por perfil (`invoice.api.max-body-bytes` e `invoice.webhook.max-body-bytes`). O `LimitedBodyReader` e a `PayloadTooLargeException` foram removidos, e o controller do webhook passou a receber `byte[]` em vez de `InputStream`. O `413` do webhook agora vem do filtro: sem a assinatura, ainda antes do controller, e um `Content-Length` acima do limite é recusado sem ler o corpo.
+- **Mudança de texto:** o `detail` do `413` do webhook deixou de dizer "do callback" e passou a "da requisição", igual ao da `api`. O `title` ("Corpo muito grande") não mudou.
+- **Teste novo:** `BodySizeLimitFilterTest` (6 casos). Foi escrito e passou **antes** da refatoração, contra o filtro antigo, para fixar o comportamento. A `api` não tinha teste automatizado desse `413` (só verificação manual com `curl`, fatia 8).
+- **Não mexi** no `BodySizeLimitFilter` do `provider-simulator`: é outro projeto, e uma terceira cópia fica fora do escopo.
+- **Verificação:** `./mvnw verify` com 240 testes, 0 falhas (234 + os 6 do filtro). No Compose real: `413` com `Content-Length` de 200 KB e em *chunked*, na `api` e no webhook (com o `problem+json` em português); corpo pequeno sem assinatura dá `401`; `POST` válido na `api` dá `201`; e o fluxo completo com o simulador chegou a `APPROVED`, o que exercita o webhook recebendo `byte[]` com a assinatura correta.

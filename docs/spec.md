@@ -487,6 +487,7 @@ Integração com fornecedor fiscal real, consulta à SEFAZ, validação fiscal c
 - A entrega é *at-least-once*: a solicitação pode ser publicada duas vezes, e o provedor deve deduplicar pelo `messageId`.
 - A espera do retry acontece dentro do worker e bloqueia aquele consumer (`prefetch = 1`). Filas de retry com TTL evitariam isso.
 - O relay mantém uma transação aberta enquanto publica. Um broker lento segura os locks das linhas.
+- O lote do relay é uma única transação: um erro inesperado fora da publicação (por exemplo, do banco) desfaz os `DELETE` das linhas já confirmadas, que são republicadas no tick seguinte. A entrega continua *at-least-once*.
 - A publicação imediata depende de um executor limitado. Se o broker ficar lento e a fila dele encher, as solicitações excedentes só são publicadas pelo relay (até 5s depois).
 - Apagar as linhas do outbox após a publicação não deixa histórico de publicação.
 - O reprocessamento da DLQ é manual.

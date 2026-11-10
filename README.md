@@ -20,7 +20,7 @@ Java 25 · Spring Boot 4.1 · RabbitMQ · PostgreSQL · Flyway · Testcontainers
 
 Requisito: Docker. Nenhuma conta externa.
 
-**1. Crie o `.env`** a partir do exemplo. Os valores servem só para uso local e podem ser trocados à vontade:
+**1. Crie o** `.env` a partir do exemplo. Os valores servem só para uso local e podem ser trocados à vontade:
 
 ```bash
 cp .env.example .env
@@ -81,8 +81,7 @@ O `provider-simulator` já sobe no Compose. Ele recebe `POST /enrichment-request
 
 Para ver uma **rejeição**, pare o simulador e mande o callback à mão:
 
-<details>
-<summary>Callback assinado com <code>cancelled: true</code></summary>
+Callback assinado com `cancelled: true`
 
 ```bash
 docker compose stop provider-simulator
@@ -100,7 +99,8 @@ docker compose start provider-simulator
 ```
 
 Sem o cabeçalho, ou com o corpo alterado, a resposta é `401`. Com a solicitação parada, o `worker` tenta 3 vezes e a manda para `invoice.enrichment.request.dlq`.
-</details>
+
+
 
 ![Swagger do invoice-webhook](docs/images/swagger-webhook.png)
 
@@ -124,8 +124,7 @@ Sem o cabeçalho, ou com o corpo alterado, a resposta é `401`. Com a solicitaç
 
 As duas mensagens usam o mesmo envelope (`messageId`, `eventType`, `occurredAt`, `correlationId` e `payload`). São JSON persistente na exchange direct `invoice.enrichment`, e cada fila tem DLQ.
 
-<details>
-<summary><code>EnrichmentRequest</code>: fila <code>invoice.enrichment.request</code></summary>
+`EnrichmentRequest`: fila `invoice.enrichment.request`
 
 ```json
 {
@@ -136,11 +135,12 @@ As duas mensagens usam o mesmo envelope (`messageId`, `eventType`, `occurredAt`,
   "payload": { "invoiceId": "0b6f5c1e-8d2a-4c53-9a43-6f4b6a0f2f11", "accessKey": "35260112345678000199550010000012341000012345" }
 }
 ```
-O `messageId` é o `id` da linha do outbox e não muda entre republicações.
-</details>
 
-<details>
-<summary><code>EnrichmentResult</code>: fila <code>invoice.enrichment.result</code></summary>
+O `messageId` é o `id` da linha do outbox e não muda entre republicações.
+
+
+
+`EnrichmentResult`: fila `invoice.enrichment.result`
 
 ```json
 {
@@ -151,8 +151,10 @@ O `messageId` é o `id` da linha do outbox e não muda entre republicações.
   "payload": { "accessKey": "35260112345678000199550010000012341000012345", "cnpj": "12ABC34501DE35", "amount": 1500.00, "issueDate": "2026-01-10", "cancelled": false }
 }
 ```
+
 Sem `messageId` ou `payload.accessKey`, ou com campo ilegível, a mensagem é malformada e vai para a DLQ. O `cancelled` ausente **não** vira `false`: a nota é rejeitada como incompleta.
-</details>
+
+
 
 | Chamada HTTP | Quem chama | Respostas |
 |---|---|---|
@@ -176,7 +178,7 @@ O HMAC é calculado sobre o corpo bruto e comparado em tempo constante. A URL do
 Requisitos: JDK 25 e Docker (Testcontainers sobe PostgreSQL e RabbitMQ).
 
 ```bash
-./mvnw verify                # tudo: 232 testes
+./mvnw verify                # tudo: 234 testes
 ./mvnw test -Punit           # sem os de integração
 ./mvnw test -Pintegration    # só integração com broker e banco reais
 ```
@@ -189,28 +191,28 @@ Os testes são de domínio, serviço (Mockito), HTTP (MockMvc), persistência e 
 - **Unicidade pela constraint**: `INSERT … ON CONFLICT DO NOTHING` e releitura, sem `SELECT` prévio. Pedidos simultâneos com a mesma chave geram uma única nota.
 - **Hexagonal enxuto**: `domain` sem Spring, `Invoice` com `approve` e `reject` e sem setters, e ports de saída. JPA para notas e `JdbcClient` para outbox e `processed_messages`, que usam SQL específico do PostgreSQL.
 - **Destino por tipo de erro**: malformada e chave inexistente vão direto para a DLQ; erro técnico tem 3 retries (2s, 4s e 8s) e depois DLQ; duplicata e nota finalizada recebem `ack`.
-- **Webhook defensivo**: corpo lido com teto antes do HMAC, e sem banco nem regra de negócio.
+- **Webhook defensivo**: corpo com teto de tamanho (o mesmo filtro da `api`) antes do HMAC, e sem banco nem regra de negócio.
 
-<details>
-<summary>Limitações conhecidas e fora do escopo</summary>
+Limitações conhecidas e fora do escopo
 
 - Nota sem resposta do provedor (ou com a solicitação na DLQ) fica em `IN_ANALYSIS` indefinidamente. O reprocessamento das DLQs é manual.
 - O retry espera dentro do worker (`prefetch = 1`). Filas de retry com TTL evitariam o bloqueio.
+- O lote do relay é uma transação só. Um erro inesperado (fora da publicação) desfaz os `DELETE` das linhas já confirmadas, e elas são publicadas de novo. A entrega *at-least-once* absorve isso.
 - O relay segura os locks das linhas enquanto publica. A publicação imediata usa um executor limitado, e o excedente fica para o relay.
 - Apagar a linha do outbox não deixa histórico de publicação.
 - `cancelled` ausente rejeita a nota de forma irreversível.
 - O HMAC não tem timestamp nem nonce: um callback capturado pode ser reenviado, e o efeito é contido pela idempotência. O segredo é simétrico e não tem rotação.
-- O simulador deduplica em memória e só gera resultados aprováveis. As rejeições são cobertas pelos testes.
+- O simulador deduplica em memória e só gera resultados aprováveis. As rejeições são cobertas pelos testes. Ele marca a solicitação como vista antes de agendar o callback, e os callbacks usam um pool de 2 threads.
+- Dívida técnica apontada na revisão final: a publicação imediata e o relay podem disputar a mesma linha nova.
 - O que é aceitável só em ambiente local: senhas e segredo de exemplo fracos no `.env.example`, usuário único no RabbitMQ, imagens sem digest, Maven Wrapper sem checksum, `415` respondido antes do `401` no webhook e `amount` arredondado para 2 casas.
-- **Fora do escopo:** fornecedor fiscal real, SEFAZ, validação fiscal completa, nuvem, autenticação, interface gráfica e observabilidade externa (há logs em português com `correlationId` e Actuator).
-</details>
+
+**Fora do escopo:** fornecedor fiscal real, SEFAZ, validação fiscal completa, nuvem, autenticação, interface gráfica e observabilidade externa (há logs em português com `correlationId` e Actuator).
 
 ## Uso de IA
 
 O projeto foi construído com o Claude Code, fatia a fatia, a partir de uma spec escrita antes do código.
 
-<details>
-<summary>O que foi gerado e o que foi revisado</summary>
+O que foi gerado e o que foi revisado
 
 - **Gerado pela IA:** a spec e os diagramas a partir das decisões do autor, o código e os testes de cada fatia, os dois diagramas deste README e este texto. As versões das dependências foram conferidas na documentação oficial.
 - **Revisado ou corrigido pelo autor:**
@@ -223,7 +225,6 @@ O projeto foi construído com o Claude Code, fatia a fatia, a partir de uma spec
   - o de boas práticas revisou a arquitetura e as convenções.
 
 O registro completo, fatia a fatia, está em [docs/ai-usage.md](docs/ai-usage.md).
-</details>
 
 ## Documentação
 

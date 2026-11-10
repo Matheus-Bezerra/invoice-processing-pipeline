@@ -144,8 +144,8 @@ Só verificação: nenhuma funcionalidade nova. Os prompts dos agentes serão de
 
 ## Entrega
 
-- [ ] `docker compose up` sobe tudo do zero (seis serviços), sem contas externas
-- [ ] Build e todos os testes passam
-- [ ] Nenhum segredo versionado
-- [ ] Revisão final do código (por exemplo, `/code-review`)
-- [ ] Repositório publicado no GitHub
+- [x] `docker compose up` sobe tudo do zero (seis serviços), sem contas externas
+- [x] Build e todos os testes passam
+- [x] Nenhum segredo versionado
+- [x] Revisão final do código (por exemplo, `/code-review`)
+- [x] Repositório publicado no GitHub
