@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.service;
+package dev.matheus.invoice.application.service.provider;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;

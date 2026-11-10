@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.service;
+package dev.matheus.invoice.application.service.invoice;
 
 import dev.matheus.invoice.domain.Invoice;
 

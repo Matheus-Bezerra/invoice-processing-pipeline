@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.service;
+package dev.matheus.invoice.application.service.outbox;
 
 import java.time.Duration;
 import java.util.List;

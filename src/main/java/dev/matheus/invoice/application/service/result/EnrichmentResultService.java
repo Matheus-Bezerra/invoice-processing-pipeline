@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.service;
+package dev.matheus.invoice.application.service.result;
 
 import java.time.Instant;
 

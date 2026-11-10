@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import dev.matheus.invoice.RabbitOnlyTestcontainersConfiguration;
-import dev.matheus.invoice.application.service.InvoiceService;
+import dev.matheus.invoice.application.service.invoice.InvoiceService;
 
 /** H7 e H8: o perfil {@code webhook} sobe só com o RabbitMQ e documenta o endpoint em português. */
 @Import(RabbitOnlyTestcontainersConfiguration.class)

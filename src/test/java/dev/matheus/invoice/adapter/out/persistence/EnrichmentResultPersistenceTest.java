@@ -25,10 +25,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import dev.matheus.invoice.TestcontainersConfiguration;
-import dev.matheus.invoice.application.service.EnrichmentResultCommand;
-import dev.matheus.invoice.application.service.EnrichmentResultService;
-import dev.matheus.invoice.application.service.ResultHandling;
-import dev.matheus.invoice.application.service.UnknownAccessKeyException;
+import dev.matheus.invoice.application.service.result.EnrichmentResultCommand;
+import dev.matheus.invoice.application.service.result.EnrichmentResultService;
+import dev.matheus.invoice.application.service.result.ResultHandling;
+import dev.matheus.invoice.application.service.result.UnknownAccessKeyException;
 import dev.matheus.invoice.domain.AccessKey;
 import dev.matheus.invoice.domain.EnrichmentData;
 

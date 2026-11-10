@@ -7,8 +7,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.matheus.invoice.application.service.EnrichmentResultPublishingService;
-import dev.matheus.invoice.application.service.PublishEnrichmentResultCommand;
+import dev.matheus.invoice.application.service.provider.EnrichmentResultPublishingService;
+import dev.matheus.invoice.application.service.provider.PublishEnrichmentResultCommand;
 import lombok.RequiredArgsConstructor;
 
 /** Ordem de verificação (spec, seção 2.5): assinatura, depois payload, depois publicação. */

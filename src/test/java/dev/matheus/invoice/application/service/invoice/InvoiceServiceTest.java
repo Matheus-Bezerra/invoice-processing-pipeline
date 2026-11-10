@@ -1,5 +1,6 @@
-package dev.matheus.invoice.application.service;
+package dev.matheus.invoice.application.service.invoice;
 
+import dev.matheus.invoice.application.service.outbox.OutboxPublisherService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;

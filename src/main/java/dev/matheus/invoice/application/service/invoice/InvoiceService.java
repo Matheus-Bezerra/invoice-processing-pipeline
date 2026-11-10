@@ -1,5 +1,6 @@
-package dev.matheus.invoice.application.service;
+package dev.matheus.invoice.application.service.invoice;
 
+import dev.matheus.invoice.application.service.outbox.OutboxPublisherService;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;

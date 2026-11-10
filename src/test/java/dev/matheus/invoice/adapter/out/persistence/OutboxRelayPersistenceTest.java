@@ -34,8 +34,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import dev.matheus.invoice.TestcontainersConfiguration;
 import dev.matheus.invoice.application.port.out.EnrichmentRequestPublisher;
-import dev.matheus.invoice.application.service.InvoiceService;
-import dev.matheus.invoice.application.service.OutboxPublisherService;
+import dev.matheus.invoice.application.service.invoice.InvoiceService;
+import dev.matheus.invoice.application.service.outbox.OutboxPublisherService;
 import dev.matheus.invoice.domain.AccessKey;
 
 @Import(TestcontainersConfiguration.class)

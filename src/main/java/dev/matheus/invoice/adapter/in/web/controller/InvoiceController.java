@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 import dev.matheus.invoice.adapter.in.web.api.InvoiceApi;
 import dev.matheus.invoice.adapter.in.web.dto.CreateInvoiceRequest;
 import dev.matheus.invoice.adapter.in.web.dto.InvoiceResponse;
-import dev.matheus.invoice.application.service.CreateInvoiceResult;
-import dev.matheus.invoice.application.service.InvoiceService;
+import dev.matheus.invoice.application.service.invoice.CreateInvoiceResult;
+import dev.matheus.invoice.application.service.invoice.InvoiceService;
 import dev.matheus.invoice.domain.AccessKey;
 import lombok.RequiredArgsConstructor;
 

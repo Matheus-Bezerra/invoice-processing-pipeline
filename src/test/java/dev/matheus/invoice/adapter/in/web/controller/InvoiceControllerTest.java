@@ -24,8 +24,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import dev.matheus.invoice.application.service.CreateInvoiceResult;
-import dev.matheus.invoice.application.service.InvoiceService;
+import dev.matheus.invoice.application.service.invoice.CreateInvoiceResult;
+import dev.matheus.invoice.application.service.invoice.InvoiceService;
 import dev.matheus.invoice.domain.AccessKey;
 import dev.matheus.invoice.domain.Invoice;
 import dev.matheus.invoice.domain.exception.InvoiceNotFoundException;

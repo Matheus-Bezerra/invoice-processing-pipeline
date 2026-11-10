@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.service;
+package dev.matheus.invoice.application.service.provider;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;

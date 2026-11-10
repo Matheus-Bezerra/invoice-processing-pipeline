@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 
 import dev.matheus.invoice.application.message.EnrichmentRequestMessage;
 import dev.matheus.invoice.application.port.out.ProviderRejectedException;
-import dev.matheus.invoice.application.service.EnrichmentRequestForwardingService;
-import dev.matheus.invoice.application.service.ForwardEnrichmentRequestCommand;
+import dev.matheus.invoice.application.service.provider.EnrichmentRequestForwardingService;
+import dev.matheus.invoice.application.service.provider.ForwardEnrichmentRequestCommand;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.core.JacksonException;

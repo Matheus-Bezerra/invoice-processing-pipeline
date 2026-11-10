@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.service;
+package dev.matheus.invoice.application.service.result;
 
 /** Resultado para uma chave sem nota cadastrada. O resultado nunca cria nota; a mensagem vai para a DLQ. */
 public class UnknownAccessKeyException extends RuntimeException {

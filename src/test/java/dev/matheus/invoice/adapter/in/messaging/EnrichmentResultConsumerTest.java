@@ -38,7 +38,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import dev.matheus.invoice.TestcontainersConfiguration;
-import dev.matheus.invoice.application.service.EnrichmentResultService;
+import dev.matheus.invoice.application.service.result.EnrichmentResultService;
 
 /** Consumer real com o RabbitMQ real: roteamento para a DLQ e retry. Esperas do retry encurtadas para 100 ms. */
 @Import(TestcontainersConfiguration.class)

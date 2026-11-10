@@ -32,8 +32,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import dev.matheus.invoice.application.port.out.ResultPublishFailedException;
-import dev.matheus.invoice.application.service.EnrichmentResultPublishingService;
-import dev.matheus.invoice.application.service.PublishEnrichmentResultCommand;
+import dev.matheus.invoice.application.service.provider.EnrichmentResultPublishingService;
+import dev.matheus.invoice.application.service.provider.PublishEnrichmentResultCommand;
 
 /** Nível W: webhook do provedor (H1 a H5). A ordem de verificação é assinatura, payload e publicação. */
 @WebMvcTest(value = EnrichmentWebhookController.class, properties = "invoice.webhook.hmac-secret=segredo-de-teste")

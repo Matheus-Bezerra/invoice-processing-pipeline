@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import dev.matheus.invoice.application.service.OutboxRelaySettings;
+import dev.matheus.invoice.application.service.outbox.OutboxRelaySettings;
 
 @Configuration(proxyBeanMethods = false)
 @Profile("!webhook")

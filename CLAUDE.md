@@ -44,14 +44,15 @@ Pacote base: `dev.matheus.invoice`.
 dev.matheus.invoice/
 ├── domain/            Invoice, InvoiceStatus, AccessKey, Cnpj, exceções de negócio
 ├── application/
-│   ├── service/       criação/consulta de notas, relay do outbox, processamento do resultado,
-│   │                  repasse da solicitação ao provedor, publicação do resultado do webhook
+│   ├── service/       um subpacote por assunto: invoice/ (criação e consulta de notas),
+│   │                  outbox/ (relay), result/ (processamento do resultado) e
+│   │                  provider/ (repasse da solicitação ao provedor, publicação do resultado do webhook)
 │   └── port/out/      InvoiceRepository, OutboxPort, EnrichmentRequestPublisher,
 │                      ProcessedMessageStore, ClockPort, ProviderClient,
 │                      EnrichmentResultPublisher
 ├── adapter/
 │   ├── in/web/        api/ (interface com Swagger), controller/, dto/, exception/,
-│   │                  webhook/ (interface com Swagger, controller, DTO, verificação do HMAC)
+│   │                  webhook/ com os mesmos api/, controller/, dto/, exception/ e verification/ (HMAC e parser)
 │   ├── in/messaging/  consumers do resultado e da solicitação
 │   ├── in/scheduler/  job do relay
 │   └── out/           persistence/ (JPA), messaging/ (publisher RabbitMQ), http/ (client do provedor)

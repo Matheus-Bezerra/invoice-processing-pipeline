@@ -435,9 +435,9 @@ Parâmetros configuráveis, com os padrões:
 Segue a skill `spring-hexagonal-architecture`, pacote base `dev.matheus.invoice`.
 
 - `domain`: `Invoice` (com `approve` e `reject` como comportamento), `InvoiceStatus`, `AccessKey` e `Cnpj` como value objects, e as exceções de negócio.
-- `application/service`: criação e consulta de notas, relay do outbox, processamento do resultado, repasse da solicitação ao provedor e publicação do resultado recebido pelo webhook.
+- `application/service`, com um subpacote por assunto: `invoice` (criação e consulta de notas), `outbox` (relay), `result` (processamento do resultado) e `provider` (repasse da solicitação ao provedor e publicação do resultado recebido pelo webhook).
 - `application/port/out`: repositório de notas, outbox, publicação da solicitação, registro de mensagens processadas, relógio, `ProviderClient` (chamada HTTP ao provedor) e `EnrichmentResultPublisher` (publicação do resultado na fila).
-- `adapter/in/web`: `api` (interface `InvoiceApi` com as anotações Swagger/OpenAPI), `controller` (implementa a interface), `dto` e tratamento de erros. O endpoint do webhook fica em `adapter/in/web/webhook` (interface com Swagger, controller, DTO do envelope e verificação do HMAC).
+- `adapter/in/web`: `api` (interface `InvoiceApi` com as anotações Swagger/OpenAPI), `controller` (implementa a interface), `dto` e tratamento de erros. O endpoint do webhook fica em `adapter/in/web/webhook`, com a mesma divisão (`api`, `controller`, `dto`, `exception`) mais `verification` (HMAC e leitura do envelope).
 - `adapter/in/messaging`: consumers do resultado e da solicitação.
 - `adapter/in/scheduler`: o job do relay.
 - `adapter/out/persistence`, `adapter/out/messaging`, `adapter/out/http`: JPA, publisher RabbitMQ e client HTTP do provedor.

@@ -20,8 +20,8 @@ import org.springframework.amqp.core.MessageBuilder;
 
 import dev.matheus.invoice.application.port.out.ProviderRejectedException;
 import dev.matheus.invoice.application.port.out.ProviderUnavailableException;
-import dev.matheus.invoice.application.service.EnrichmentRequestForwardingService;
-import dev.matheus.invoice.application.service.ForwardEnrichmentRequestCommand;
+import dev.matheus.invoice.application.service.provider.EnrichmentRequestForwardingService;
+import dev.matheus.invoice.application.service.provider.ForwardEnrichmentRequestCommand;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Nível A: consumer da solicitação, sem Spring (C1 a C4). */

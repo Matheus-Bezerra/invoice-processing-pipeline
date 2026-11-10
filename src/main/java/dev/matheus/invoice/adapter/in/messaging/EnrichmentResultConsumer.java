@@ -11,9 +11,9 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import dev.matheus.invoice.application.service.EnrichmentResultCommand;
-import dev.matheus.invoice.application.service.EnrichmentResultService;
-import dev.matheus.invoice.application.service.UnknownAccessKeyException;
+import dev.matheus.invoice.application.service.result.EnrichmentResultCommand;
+import dev.matheus.invoice.application.service.result.EnrichmentResultService;
+import dev.matheus.invoice.application.service.result.UnknownAccessKeyException;
 import dev.matheus.invoice.domain.AccessKey;
 import dev.matheus.invoice.domain.EnrichmentData;
 import dev.matheus.invoice.domain.exception.InvalidAccessKeyException;
