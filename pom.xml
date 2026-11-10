@@ -160,4 +160,41 @@
 		</plugins>
 	</build>
 
+	<!--
+		Sem perfil, o build roda tudo (unitários e integração). Os testes de integração (RabbitMQ e PostgreSQL reais)
+		carregam a tag "integration" (veja IntegrationTestSupport).
+		  ./mvnw test -Pintegration   só os de integração
+		  ./mvnw test -Punit          tudo, menos os de integração
+	-->
+	<profiles>
+		<profile>
+			<id>integration</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<groups>integration</groups>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>unit</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<excludedGroups>integration</excludedGroups>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>

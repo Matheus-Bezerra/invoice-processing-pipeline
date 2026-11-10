@@ -105,7 +105,9 @@ Requisitos: JDK 25 e Docker em execução (os testes usam Testcontainers).
 
 ```bash
 ./mvnw verify                      # compila e roda os testes (Testcontainers sobe Postgres e RabbitMQ)
-./mvnw test                        # só os testes
+./mvnw test                        # só os testes (unitários e de integração)
+./mvnw test -Pintegration          # só os de integração (pacote integration, tag "integration"; RabbitMQ e PostgreSQL reais)
+./mvnw test -Punit                 # tudo, menos os de integração
 cp .env.example .env               # uma vez; valores locais de exemplo
 docker compose up --build          # postgres, rabbitmq, api (8080), worker (8081), invoice-webhook (8082) e provider-simulator (8083)
 docker compose down                # derruba tudo
