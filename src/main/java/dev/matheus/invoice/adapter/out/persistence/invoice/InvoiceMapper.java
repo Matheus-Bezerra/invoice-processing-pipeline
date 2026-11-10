@@ -1,4 +1,4 @@
-package dev.matheus.invoice.adapter.out.persistence;
+package dev.matheus.invoice.adapter.out.persistence.invoice;
 
 import dev.matheus.invoice.domain.AccessKey;
 import dev.matheus.invoice.domain.Invoice;

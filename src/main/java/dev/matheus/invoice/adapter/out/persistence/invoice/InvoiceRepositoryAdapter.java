@@ -1,4 +1,4 @@
-package dev.matheus.invoice.adapter.out.persistence;
+package dev.matheus.invoice.adapter.out.persistence.invoice;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
-import dev.matheus.invoice.application.port.out.InvoiceRepository;
+import dev.matheus.invoice.application.port.out.persistence.invoice.InvoiceRepository;
 import dev.matheus.invoice.domain.AccessKey;
 import dev.matheus.invoice.domain.Invoice;
 import lombok.RequiredArgsConstructor;

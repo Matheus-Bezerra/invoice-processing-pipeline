@@ -22,7 +22,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import dev.matheus.invoice.TestcontainersConfiguration;
-import dev.matheus.invoice.application.port.out.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
 import dev.matheus.invoice.application.service.invoice.CreateInvoiceResult;
 import dev.matheus.invoice.application.service.invoice.InvoiceService;
 import dev.matheus.invoice.domain.AccessKey;

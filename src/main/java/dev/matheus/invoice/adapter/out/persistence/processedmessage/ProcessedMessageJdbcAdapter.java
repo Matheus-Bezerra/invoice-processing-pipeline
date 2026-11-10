@@ -1,4 +1,4 @@
-package dev.matheus.invoice.adapter.out.persistence;
+package dev.matheus.invoice.adapter.out.persistence.processedmessage;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import dev.matheus.invoice.application.port.out.ProcessedMessageStore;
+import dev.matheus.invoice.application.port.out.persistence.processedmessage.ProcessedMessageStore;
 import lombok.RequiredArgsConstructor;
 
 @Repository

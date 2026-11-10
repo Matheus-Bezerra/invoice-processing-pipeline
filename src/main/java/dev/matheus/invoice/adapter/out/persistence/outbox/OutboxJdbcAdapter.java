@@ -1,4 +1,4 @@
-package dev.matheus.invoice.adapter.out.persistence;
+package dev.matheus.invoice.adapter.out.persistence.outbox;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -11,8 +11,8 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import dev.matheus.invoice.application.port.out.OutboxPort;
-import dev.matheus.invoice.application.port.out.PendingRequest;
+import dev.matheus.invoice.application.port.out.persistence.outbox.OutboxPort;
+import dev.matheus.invoice.application.port.out.persistence.outbox.PendingRequest;
 import dev.matheus.invoice.domain.AccessKey;
 import lombok.RequiredArgsConstructor;
 
