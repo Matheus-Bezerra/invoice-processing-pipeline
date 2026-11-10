@@ -16,17 +16,17 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
  * Envio com <em>publisher confirm</em> correlacionado e {@code mandatory}: só retorna com o {@code ack} do broker e
  * sem devolução (mensagem roteada para alguma fila). Compartilhado pelos publishers da solicitação e do resultado.
  */
-final class ConfirmedPublisher {
+public final class ConfirmedPublisher {
 
     private final RabbitTemplate rabbitTemplate;
     private final Duration confirmTimeout;
 
-    ConfirmedPublisher(RabbitTemplate rabbitTemplate, Duration confirmTimeout) {
+    public ConfirmedPublisher(RabbitTemplate rabbitTemplate, Duration confirmTimeout) {
         this.rabbitTemplate = rabbitTemplate;
         this.confirmTimeout = confirmTimeout;
     }
 
-    void send(String routingKey, Message message, UUID messageId) {
+    public void send(String routingKey, Message message, UUID messageId) {
         CorrelationData correlation = new CorrelationData(messageId.toString());
 
         rabbitTemplate.send(EXCHANGE, routingKey, message, correlation);

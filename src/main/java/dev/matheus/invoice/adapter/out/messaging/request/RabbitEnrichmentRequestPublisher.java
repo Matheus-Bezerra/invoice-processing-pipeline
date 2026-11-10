@@ -1,5 +1,6 @@
-package dev.matheus.invoice.adapter.out.messaging;
+package dev.matheus.invoice.adapter.out.messaging.request;
 
+import dev.matheus.invoice.adapter.out.messaging.ConfirmedPublisher;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_ROUTING_KEY;
 
 import java.nio.charset.StandardCharsets;
@@ -15,7 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import dev.matheus.invoice.application.port.out.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
 
 /** Publica a solicitação com <em>publisher confirm</em> (ver {@link ConfirmedPublisher}). */
 @Component

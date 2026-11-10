@@ -1,5 +1,7 @@
-package dev.matheus.invoice.adapter.out.messaging;
+package dev.matheus.invoice.adapter.out.messaging.result;
 
+import dev.matheus.invoice.adapter.out.messaging.ConfirmedPublisher;
+import dev.matheus.invoice.adapter.out.messaging.MessagePublishException;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.RESULT_ROUTING_KEY;
 
 import java.time.Duration;
@@ -15,8 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import dev.matheus.invoice.application.port.out.EnrichmentResultPublisher;
-import dev.matheus.invoice.application.port.out.ResultPublishFailedException;
+import dev.matheus.invoice.application.port.out.messaging.EnrichmentResultPublisher;
+import dev.matheus.invoice.application.port.out.messaging.ResultPublishFailedException;
 
 /**
  * Publica o resultado do provedor na fila de resultado, com o corpo como chegou (sem reserializar) e

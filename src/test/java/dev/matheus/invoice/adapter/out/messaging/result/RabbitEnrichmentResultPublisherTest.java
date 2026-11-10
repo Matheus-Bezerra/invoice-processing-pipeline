@@ -1,4 +1,4 @@
-package dev.matheus.invoice.adapter.out.messaging;
+package dev.matheus.invoice.adapter.out.messaging.result;
 
 import static dev.matheus.invoice.config.messaging.MessagingTopology.EXCHANGE;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.RESULT_DLQ;
@@ -26,8 +26,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import dev.matheus.invoice.RabbitOnlyTestcontainersConfiguration;
-import dev.matheus.invoice.application.port.out.EnrichmentResultPublisher;
-import dev.matheus.invoice.application.port.out.ResultPublishFailedException;
+import dev.matheus.invoice.application.port.out.messaging.EnrichmentResultPublisher;
+import dev.matheus.invoice.application.port.out.messaging.ResultPublishFailedException;
 
 /** Publisher do resultado com o RabbitMQ real, no perfil {@code webhook} (sem banco). */
 @Import(RabbitOnlyTestcontainersConfiguration.class)

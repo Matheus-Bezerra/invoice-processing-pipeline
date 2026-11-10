@@ -1,5 +1,6 @@
-package dev.matheus.invoice.adapter.out.messaging;
+package dev.matheus.invoice.adapter.out.messaging.request;
 
+import dev.matheus.invoice.adapter.out.messaging.MessagePublishException;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.EXCHANGE;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_DLQ;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_QUEUE;
@@ -30,7 +31,7 @@ import org.springframework.context.annotation.Import;
 import com.rabbitmq.client.GetResponse;
 
 import dev.matheus.invoice.TestcontainersConfiguration;
-import dev.matheus.invoice.application.port.out.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
