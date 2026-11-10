@@ -156,7 +156,7 @@ Sem `messageId` ou `payload.accessKey`, ou com campo ilegível, a mensagem é ma
 
 | Chamada HTTP | Quem chama | Respostas |
 |---|---|---|
-| `POST {PROVIDER_BASE_URL}/enrichment-requests`, corpo `EnrichmentRequest` e `X-Correlation-Id` | `worker` | `202` ack · `4xx` DLQ direto · `5xx`, `3xx`, timeout ou conexão recusada: 3 retries e DLQ |
+| `POST {PROVIDER_BASE_URL}/enrichment-requests`, corpo `EnrichmentRequest` e `X-Correlation-Id` | `worker` | `202` ack · `4xx` DLQ direto · `5xx`, `3xx`, `408`, `429`, timeout ou conexão recusada: 3 retries e DLQ |
 | `POST /webhooks/enrichment-results`, corpo `EnrichmentResult` e `X-Signature: sha256=<hex>` | provedor | `202` publicado · `413` acima de 64 KB · `401` assinatura · `400` payload · `503` broker sem confirmação |
 
 O HMAC é calculado sobre o corpo bruto e comparado em tempo constante. A URL do callback é configuração do provedor e nunca vai na mensagem. Contratos completos em [docs/spec.md](docs/spec.md), seções 2 e 3.

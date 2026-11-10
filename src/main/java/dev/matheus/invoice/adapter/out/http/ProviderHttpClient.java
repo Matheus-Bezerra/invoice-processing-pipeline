@@ -21,8 +21,9 @@ import dev.matheus.invoice.application.port.out.provider.ProviderRejectedExcepti
 import dev.matheus.invoice.application.port.out.provider.ProviderUnavailableException;
 
 /**
- * Chama {@code POST /enrichment-requests} no provedor (spec, seção 3.4). {@code 4xx} é recusa permanente; {@code 5xx},
- * redirecionamento, timeout e conexão recusada são falha técnica. As mensagens de erro não levam o corpo da
+ * Chama {@code POST /enrichment-requests} no provedor (spec, seção 3.4). {@code 4xx} é recusa permanente, menos
+ * {@code 408} e {@code 429}, que são temporários; esses dois, {@code 5xx}, redirecionamento, timeout e conexão recusada
+ * são falha técnica. As mensagens de erro não levam o corpo da
  * requisição nem o da resposta.
  */
 @Component
@@ -59,7 +60,12 @@ class ProviderHttpClient implements ProviderClient {
                     .toBodilessEntity()
                     .getStatusCode();
         } catch (HttpClientErrorException e) {
-            throw new ProviderRejectedException(e.getStatusCode().value());
+            int code = e.getStatusCode().value();
+            // 408 e 429 são 4xx temporários (o provedor pede para tentar depois): retry, e não DLQ direto.
+            if (code == 408 || code == 429) {
+                throw new ProviderUnavailableException("Provedor pediu nova tentativa (status " + code + ")", e);
+            }
+            throw new ProviderRejectedException(code);
         } catch (HttpServerErrorException e) {
             throw new ProviderUnavailableException(
                     "Provedor indisponível (status " + e.getStatusCode().value() + ")", e);

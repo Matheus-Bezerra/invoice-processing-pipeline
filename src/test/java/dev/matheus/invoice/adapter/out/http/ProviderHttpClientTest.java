@@ -104,6 +104,16 @@ class ProviderHttpClientTest {
     }
 
     @ParameterizedTest
+    @ValueSource(ints = {408, 429})
+    void temporaryClientErrorIsTechnicalFailure(int code) {
+        status = code;
+
+        assertThatThrownBy(() -> client.requestEnrichment(CORRELATION_ID, BODY))
+                .isInstanceOf(ProviderUnavailableException.class)
+                .hasMessageContaining(String.valueOf(code));
+    }
+
+    @ParameterizedTest
     @ValueSource(ints = {301, 302, 307, 308})
     void redirectIsTechnicalFailureAndIsNotFollowed(int code) {
         status = code;

@@ -99,7 +99,7 @@ O request do cliente nunca espera o provedor, e a nota nunca é aprovada durante
 
 | Chamada | Quem chama | Corpo | Resposta |
 |---|---|---|---|
-| `POST {PROVIDER_BASE_URL}/enrichment-requests` | `worker` | `EnrichmentRequest` | `202` sem dados. `4xx` é erro permanente; `5xx`, `3xx` (não seguido) e timeout são erro técnico |
+| `POST {PROVIDER_BASE_URL}/enrichment-requests` | `worker` | `EnrichmentRequest` | `202` sem dados. `4xx` é erro permanente (exceto `408` e `429`); `5xx`, `3xx` (não seguido), `408`, `429` e timeout são erro técnico |
 | `POST /webhooks/enrichment-results` | `provider-simulator` | `EnrichmentResult`, com `X-Signature: sha256=<hex>` | `202` publicado, `413` corpo acima do limite, `401` assinatura inválida, `400` payload malformado, `503` falha ao publicar |
 
 Os dados da nota (cnpj, valor, data, cancelamento) trafegam **só** no callback. A URL do callback é configuração do provedor e não vai na solicitação.
@@ -199,8 +199,8 @@ flowchart TD
     B -- "sim" --> C["POST /enrichment-requests ao provedor"]
     C --> D{"Resposta"}
     D -- "202" --> ACK["ack"]
-    D -- "4xx (erro permanente)" --> DLQ
-    D -- "5xx, 3xx, timeout ou conexão recusada" --> RT{"Já usou os 3 retries?"}
+    D -- "4xx, exceto 408 e 429 (erro permanente)" --> DLQ
+    D -- "5xx, 3xx, 408, 429, timeout ou conexão recusada" --> RT{"Já usou os 3 retries?"}
     RT -- "não" --> WT["Espera 2s, 4s ou 8s e chama de novo"]
     WT --> C
     RT -- "sim" --> DLQ
@@ -294,7 +294,7 @@ Uma linha do outbox só existe enquanto a solicitação está pendente: ela é a
 - Consumer: 3 retries dentro do worker, com esperas de 2s, 4s e 8s (até 4 execuções no total), e depois DLQ. Não há tabela de log de erros, a DLQ guarda a mensagem.
 - O provedor fala HTTP, não fila. O `worker` consome a solicitação e a repassa por `POST /enrichment-requests` (resposta `202` sem dados). O resultado volta por callback no webhook, e os dados da nota trafegam só nele.
 - O `invoice-webhook` é um perfil (`webhook`) da mesma imagem de `api` e `worker`, sem banco. Valida o HMAC-SHA256 do corpo bruto e o formato, e publica o resultado na fila. Assinatura inválida: `401`. Payload malformado: `400`, sem publicar. Falha ao publicar: `503`, e o provedor reenvia.
-- A solicitação tem DLQ própria (`invoice.enrichment.request.dlq`) e a mesma política de retry do resultado: `4xx` e malformada vão direto à DLQ, `5xx`, `3xx` e timeout fazem 3 retries.
+- A solicitação tem DLQ própria (`invoice.enrichment.request.dlq`) e a mesma política de retry do resultado: `4xx` e malformada vão direto à DLQ; `5xx`, `3xx`, `408`, `429` e timeout fazem 3 retries.
 - O `provider-simulator` é um projeto à parte, só HTTP: recebe a chamada, responde `202`, espera, assina o resultado e chama o webhook (com até 3 reenvios em `5xx`). A URL do callback é configuração dele, nunca vem na solicitação.
 - O `messageId` do resultado é derivado do `messageId` da solicitação (feito pelo simulador). Uma solicitação entregue duas vezes, ou um callback reenviado, gera o mesmo resultado, que `processed_messages` descarta.
 - Horários em UTC (`timestamptz` no banco, ISO-8601 na API).
