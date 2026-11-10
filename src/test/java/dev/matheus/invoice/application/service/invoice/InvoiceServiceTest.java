@@ -35,7 +35,6 @@ import dev.matheus.invoice.domain.Invoice;
 import dev.matheus.invoice.domain.InvoiceStatus;
 import dev.matheus.invoice.domain.exception.InvoiceNotFoundException;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith(MockitoExtension.class)
 class InvoiceServiceTest {
@@ -54,12 +53,11 @@ class InvoiceServiceTest {
     @Mock
     private ExecutorService executor;
 
-    private final JsonMapper jsonMapper = JsonMapper.builder().build();
     private InvoiceService service;
 
     @BeforeEach
     void setUp() {
-        service = new InvoiceService(invoices, outbox, clock, jsonMapper, outboxPublisher, executor);
+        service = new InvoiceService(invoices, outbox, clock, outboxPublisher, executor);
     }
 
     @Test
@@ -79,23 +77,14 @@ class InvoiceServiceTest {
     }
 
     @Test
-    void newInvoiceEnqueuesTheRequestEnvelopeWithTheOutboxIdAsMessageId() {
+    void newInvoiceEnqueuesTheRequestWithTheInvoiceAndTheKey() {
         when(clock.now()).thenReturn(NOW);
         when(invoices.insertIfAbsent(any())).thenReturn(true);
 
         Invoice invoice = service.create(KEY).invoice();
 
-        ArgumentCaptor<UUID> outboxId = ArgumentCaptor.forClass(UUID.class);
-        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
-        verify(outbox).enqueue(outboxId.capture(), org.mockito.ArgumentMatchers.eq(invoice.id()),
-                org.mockito.ArgumentMatchers.eq(KEY), payload.capture(), org.mockito.ArgumentMatchers.eq(NOW));
-        JsonNode json = jsonMapper.readTree(payload.getValue());
-        assertThat(json.get("messageId").asString()).isEqualTo(outboxId.getValue().toString());
-        assertThat(json.get("eventType").asString()).isEqualTo("invoice.enrichment.requested");
-        assertThat(json.get("occurredAt").asString()).isEqualTo("2026-11-04T12:00:00Z");
-        assertThat(json.get("correlationId").asString()).isEqualTo(invoice.id().toString());
-        assertThat(json.get("payload").get("invoiceId").asString()).isEqualTo(invoice.id().toString());
-        assertThat(json.get("payload").get("accessKey").asString()).isEqualTo(KEY.value());
+        verify(outbox).enqueue(any(UUID.class), org.mockito.ArgumentMatchers.eq(invoice.id()),
+                org.mockito.ArgumentMatchers.eq(KEY), org.mockito.ArgumentMatchers.eq(NOW));
     }
 
     @Test
@@ -130,7 +119,7 @@ class InvoiceServiceTest {
             when(invoices.insertIfAbsent(any())).thenReturn(true);
             service.create(KEY);
             ArgumentCaptor<UUID> messageId = ArgumentCaptor.forClass(UUID.class);
-            verify(outbox).enqueue(messageId.capture(), any(), any(), any(), any());
+            verify(outbox).enqueue(messageId.capture(), any(), any(), any());
             return messageId.getValue();
         }
 

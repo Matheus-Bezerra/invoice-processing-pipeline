@@ -23,6 +23,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import dev.matheus.invoice.TestcontainersConfiguration;
 import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.messaging.RequestPublishFailedException;
 import dev.matheus.invoice.application.service.invoice.CreateInvoiceResult;
 import dev.matheus.invoice.application.service.invoice.InvoiceService;
 import dev.matheus.invoice.domain.AccessKey;
@@ -48,7 +49,7 @@ class InvoiceServicePersistenceTest {
 
     @BeforeEach
     void cleanTables() {
-        doThrow(new IllegalStateException("broker indisponível no teste")).when(publisher).publish(any(), any(), any());
+        doThrow(new RequestPublishFailedException("broker indisponível no teste", null)).when(publisher).publish(any(), any(), any());
         jdbc.update("DELETE FROM outbox");
         jdbc.update("DELETE FROM invoices");
     }
@@ -77,6 +78,13 @@ class InvoiceServicePersistenceTest {
                 .isEqualTo(stored.id().toString());
         assertThat(jdbc.queryForObject("SELECT payload->>'messageId' = id::text FROM outbox", Boolean.class))
                 .isTrue();
+        assertThat(jdbc.queryForObject("SELECT payload->>'eventType' FROM outbox", String.class))
+                .isEqualTo("invoice.enrichment.requested");
+        assertThat(jdbc.queryForObject("SELECT payload->>'occurredAt' FROM outbox", String.class)).isNotBlank();
+        assertThat(jdbc.queryForObject("SELECT payload->'payload'->>'invoiceId' FROM outbox", String.class))
+                .isEqualTo(stored.id().toString());
+        assertThat(jdbc.queryForObject("SELECT payload->'payload'->>'accessKey' FROM outbox", String.class))
+                .isEqualTo(KEY.value());
     }
 
     @Test

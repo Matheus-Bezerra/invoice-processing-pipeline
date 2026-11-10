@@ -1,6 +1,7 @@
 package dev.matheus.invoice.adapter.out.messaging.request;
 
 import dev.matheus.invoice.adapter.out.messaging.ConfirmedPublisher;
+import dev.matheus.invoice.adapter.out.messaging.MessagePublishException;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_ROUTING_KEY;
 
 import java.nio.charset.StandardCharsets;
@@ -17,6 +18,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.messaging.RequestPublishFailedException;
 
 /** Publica a solicitação com <em>publisher confirm</em> (ver {@link ConfirmedPublisher}). */
 @Component
@@ -41,6 +43,10 @@ class RabbitEnrichmentRequestPublisher implements EnrichmentRequestPublisher {
                 .setDeliveryMode(MessageDeliveryMode.PERSISTENT)
                 .build();
 
-        confirmedPublisher.send(REQUEST_ROUTING_KEY, message, messageId);
+        try {
+            confirmedPublisher.send(REQUEST_ROUTING_KEY, message, messageId);
+        } catch (MessagePublishException e) {
+            throw new RequestPublishFailedException(e.getMessage(), e);
+        }
     }
 }

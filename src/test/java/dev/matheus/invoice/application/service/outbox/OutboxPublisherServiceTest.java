@@ -28,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import dev.matheus.invoice.application.port.out.clock.ClockPort;
 import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.messaging.RequestPublishFailedException;
 import dev.matheus.invoice.application.port.out.persistence.outbox.OutboxPort;
 import dev.matheus.invoice.application.port.out.persistence.outbox.PendingRequest;
 
@@ -61,7 +62,7 @@ class OutboxPublisherServiceTest {
         PendingRequest row = pending(0);
         when(clock.now()).thenReturn(NOW);
         when(outbox.lockById(row.id())).thenReturn(Optional.of(row));
-        doThrow(new IllegalStateException("broker fora do ar"))
+        doThrow(new RequestPublishFailedException("broker fora do ar", null))
                 .when(publisher).publish(row.id(), row.invoiceId(), row.payloadJson());
 
         assertThat(service.publish(row.id())).isFalse();
@@ -111,7 +112,7 @@ class OutboxPublisherServiceTest {
         PendingRequest ok = pending(0);
         when(clock.now()).thenReturn(NOW);
         when(outbox.lockDue(NOW, 50)).thenReturn(List.of(failing, ok));
-        doThrow(new IllegalStateException("sem confirm"))
+        doThrow(new RequestPublishFailedException("sem confirm", null))
                 .when(publisher).publish(failing.id(), failing.invoiceId(), failing.payloadJson());
 
         assertThat(service.publishDue()).isEqualTo(1);

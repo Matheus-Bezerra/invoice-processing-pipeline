@@ -1,6 +1,6 @@
 package dev.matheus.invoice.adapter.out.messaging.request;
 
-import dev.matheus.invoice.adapter.out.messaging.MessagePublishException;
+import dev.matheus.invoice.application.port.out.messaging.RequestPublishFailedException;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.EXCHANGE;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_DLQ;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_QUEUE;
@@ -82,7 +82,7 @@ class RabbitEnrichmentRequestPublisherTest {
         rabbitAdmin.deleteQueue(REQUEST_QUEUE);
         try {
             assertThatThrownBy(() -> publisher.publish(UUID.randomUUID(), UUID.randomUUID(), "{}"))
-                    .isInstanceOf(MessagePublishException.class)
+                    .isInstanceOf(RequestPublishFailedException.class)
                     .hasMessageContaining("devolvida");
         } finally {
             rabbitAdmin.initialize();
@@ -104,7 +104,7 @@ class RabbitEnrichmentRequestPublisherTest {
             publisher.publish(UUID.randomUUID(), UUID.randomUUID(), "{}");
 
             assertThatThrownBy(() -> publisher.publish(UUID.randomUUID(), UUID.randomUUID(), "{}"))
-                    .isInstanceOf(MessagePublishException.class)
+                    .isInstanceOf(RequestPublishFailedException.class)
                     .hasMessageContaining("nack");
         } finally {
             rabbitAdmin.deleteQueue(REQUEST_QUEUE);

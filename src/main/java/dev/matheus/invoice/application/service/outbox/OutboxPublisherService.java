@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.matheus.invoice.application.port.out.clock.ClockPort;
 import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.messaging.RequestPublishFailedException;
 import dev.matheus.invoice.application.port.out.persistence.outbox.OutboxPort;
 import dev.matheus.invoice.application.port.out.persistence.outbox.PendingRequest;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +60,7 @@ public class OutboxPublisherService {
     private boolean publishLocked(PendingRequest request) {
         try {
             publisher.publish(request.id(), request.invoiceId(), request.payloadJson());
-        } catch (RuntimeException e) {
+        } catch (RequestPublishFailedException e) {
             int attempts = request.attempts() + 1;
             Duration delay = backoff(attempts);
             outbox.markFailed(request.id(), attempts, clock.now().plus(delay), describe(e));
@@ -82,7 +83,7 @@ public class OutboxPublisherService {
         return exponential.compareTo(settings.maxBackoff()) < 0 ? exponential : settings.maxBackoff();
     }
 
-    private static String describe(RuntimeException e) {
+    private static String describe(RequestPublishFailedException e) {
         String text = e.getClass().getSimpleName() + ": " + e.getMessage();
         return text.length() > MAX_ERROR_LENGTH ? text.substring(0, MAX_ERROR_LENGTH) : text;
     }

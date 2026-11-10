@@ -5,8 +5,9 @@ import java.util.UUID;
 public interface EnrichmentRequestPublisher {
 
     /**
-     * Publica a solicitação e só retorna depois do <em>publisher confirm</em>. Lança exceção quando o broker
-     * não confirma (nack, timeout, mensagem devolvida ou falha de conexão).
+     * Publica a solicitação e só retorna depois do <em>publisher confirm</em>.
+     *
+     * @throws RequestPublishFailedException o broker não confirmou (nack, timeout, devolução ou falha de conexão)
      */
     void publish(UUID messageId, UUID correlationId, String payloadJson);
 }

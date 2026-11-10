@@ -10,8 +10,11 @@ import dev.matheus.invoice.domain.AccessKey;
 /** Todas as operações participam da transação em andamento. As reservas usam {@code FOR UPDATE SKIP LOCKED}. */
 public interface OutboxPort {
 
-    /** Grava uma solicitação pendente de publicação. */
-    void enqueue(UUID id, UUID invoiceId, AccessKey accessKey, String payloadJson, Instant now);
+    /**
+     * Grava uma solicitação pendente de publicação. O adapter monta o envelope da mensagem (spec, seção 3.1), com
+     * {@code id} como {@code messageId}.
+     */
+    void enqueue(UUID id, UUID invoiceId, AccessKey accessKey, Instant now);
 
     /** Reserva a linha, se ela ainda existir e não estiver travada por outra transação. */
     Optional<PendingRequest> lockById(UUID id);

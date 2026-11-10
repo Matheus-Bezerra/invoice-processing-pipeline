@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import dev.matheus.invoice.application.message.EnrichmentRequestMessage;
 import dev.matheus.invoice.application.port.out.clock.ClockPort;
 import dev.matheus.invoice.application.port.out.persistence.invoice.InvoiceRepository;
 import dev.matheus.invoice.application.port.out.persistence.outbox.OutboxPort;
@@ -21,7 +20,6 @@ import dev.matheus.invoice.domain.Invoice;
 import dev.matheus.invoice.domain.exception.InvoiceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 @Service
@@ -32,7 +30,6 @@ public class InvoiceService {
     private final InvoiceRepository invoices;
     private final OutboxPort outbox;
     private final ClockPort clock;
-    private final JsonMapper jsonMapper;
     private final OutboxPublisherService outboxPublisher;
     private final ExecutorService immediatePublishExecutor;
 
@@ -52,10 +49,7 @@ public class InvoiceService {
         }
 
         UUID messageId = UUID.randomUUID();
-        String payload = jsonMapper.writeValueAsString(
-                EnrichmentRequestMessage.of(messageId, invoice.id(), accessKey.value(), now));
-
-        outbox.enqueue(messageId, invoice.id(), accessKey, payload, now);
+        outbox.enqueue(messageId, invoice.id(), accessKey, now);
         log.info("Nota cadastrada em análise: correlationId={}, messageId={}", invoice.id(), messageId);
         publishAfterCommit(messageId, invoice.id());
 

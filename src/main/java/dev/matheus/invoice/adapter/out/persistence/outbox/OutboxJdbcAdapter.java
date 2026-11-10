@@ -15,6 +15,7 @@ import dev.matheus.invoice.application.port.out.persistence.outbox.OutboxPort;
 import dev.matheus.invoice.application.port.out.persistence.outbox.PendingRequest;
 import dev.matheus.invoice.domain.AccessKey;
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.json.JsonMapper;
 
 @Repository
 @Profile("!webhook")
@@ -27,10 +28,15 @@ class OutboxJdbcAdapter implements OutboxPort {
             rs.getString("payload"),
             rs.getInt("attempts"));
 
+    private static final String EVENT_TYPE = "invoice.enrichment.requested";
+
     private final JdbcClient jdbc;
+    private final JsonMapper jsonMapper;
 
     @Override
-    public void enqueue(UUID id, UUID invoiceId, AccessKey accessKey, String payloadJson, Instant now) {
+    public void enqueue(UUID id, UUID invoiceId, AccessKey accessKey, Instant now) {
+        String payloadJson = jsonMapper.writeValueAsString(new RequestEnvelope(id, EVENT_TYPE, now, invoiceId,
+                new RequestEnvelope.Payload(invoiceId, accessKey.value())));
         jdbc.sql("""
                 INSERT INTO outbox (id, invoice_id, access_key, payload, attempts, next_attempt_at, created_at)
                 VALUES (:id, :invoiceId, :accessKey, CAST(:payload AS jsonb), 0, :now, :now)
@@ -89,5 +95,13 @@ class OutboxJdbcAdapter implements OutboxPort {
                 .param("nextAttemptAt", Timestamp.from(nextAttemptAt))
                 .param("error", error)
                 .update();
+    }
+
+    /** Envelope da solicitação de enriquecimento (spec, seção 3.1). */
+    private record RequestEnvelope(UUID messageId, String eventType, Instant occurredAt, UUID correlationId,
+            Payload payload) {
+
+        private record Payload(UUID invoiceId, String accessKey) {
+        }
     }
 }

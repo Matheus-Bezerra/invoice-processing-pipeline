@@ -3,6 +3,7 @@ package dev.matheus.invoice.adapter.in.messaging;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_QUEUE;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -13,7 +14,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import dev.matheus.invoice.application.message.EnrichmentRequestMessage;
 import dev.matheus.invoice.application.port.out.provider.ProviderRejectedException;
 import dev.matheus.invoice.application.service.provider.EnrichmentRequestForwardingService;
 import dev.matheus.invoice.application.service.provider.ForwardEnrichmentRequestCommand;
@@ -51,16 +51,16 @@ class EnrichmentRequestConsumer {
 
     private ForwardEnrichmentRequestCommand parse(Message message) {
         String body = new String(message.getBody(), StandardCharsets.UTF_8);
-        EnrichmentRequestMessage request;
+        RequestMessage request;
         try {
-            request = jsonMapper.readValue(body, EnrichmentRequestMessage.class);
+            request = jsonMapper.readValue(body, RequestMessage.class);
         } catch (JacksonException e) {
             throw malformed(null, readFailure(e));
         }
         if (request == null || request.messageId() == null) {
             throw malformed(request, "messageId ausente");
         }
-        EnrichmentRequestMessage.Payload payload = request.payload();
+        RequestMessage.Payload payload = request.payload();
         if (payload == null || payload.invoiceId() == null) {
             throw malformed(request, "payload.invoiceId ausente");
         }
@@ -80,9 +80,17 @@ class EnrichmentRequestConsumer {
         return path.isEmpty() ? "JSON inválido" : "campo com tipo ou formato ilegível: " + path;
     }
 
-    private static AmqpRejectAndDontRequeueException malformed(EnrichmentRequestMessage request, String reason) {
+    private static AmqpRejectAndDontRequeueException malformed(RequestMessage request, String reason) {
         log.warn("Solicitação malformada enviada para a DLQ: correlationId={}, messageId={}, motivo={}",
                 request == null ? null : request.correlationId(), request == null ? null : request.messageId(), reason);
         return new AmqpRejectAndDontRequeueException("Solicitação malformada: " + reason);
+    }
+
+    /** Envelope da solicitação lido da fila (spec, seção 3.1). */
+    private record RequestMessage(UUID messageId, String eventType, Instant occurredAt, UUID correlationId,
+            Payload payload) {
+
+        private record Payload(UUID invoiceId, String accessKey) {
+        }
     }
 }

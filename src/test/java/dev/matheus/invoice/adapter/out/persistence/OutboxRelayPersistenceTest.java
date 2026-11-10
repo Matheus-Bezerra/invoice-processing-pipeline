@@ -34,6 +34,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import dev.matheus.invoice.TestcontainersConfiguration;
 import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.messaging.RequestPublishFailedException;
 import dev.matheus.invoice.application.service.invoice.InvoiceService;
 import dev.matheus.invoice.application.service.outbox.OutboxPublisherService;
 import dev.matheus.invoice.domain.AccessKey;
@@ -176,7 +177,7 @@ class OutboxRelayPersistenceTest {
 
     @Test
     void t9_failedPublicationKeepsTheRowWithBackoffAndTheInvoiceUntouched() {
-        doThrow(new IllegalStateException("broker fora do ar")).when(publisher).publish(any(), any(), any());
+        doThrow(new RequestPublishFailedException("broker fora do ar", null)).when(publisher).publish(any(), any(), any());
         UUID invoiceId = invoiceService.create(AccessKey.of("35260112345678000199550010000012341000012345"))
                 .invoice().id();
 
