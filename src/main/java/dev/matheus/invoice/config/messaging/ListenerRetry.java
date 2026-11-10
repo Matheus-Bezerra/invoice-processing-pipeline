@@ -4,14 +4,19 @@ import java.time.Duration;
 
 import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
+import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.retry.MessageRecoverer;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Retry sem estado dos consumers (resultado e solicitação): rejeições ({@link AmqpRejectAndDontRequeueException})
- * não fazem retry, e o erro técnico faz {@code maxRetries} retries com espera crescente e depois vai para a DLQ.
+ * Container e retry dos consumers (resultado e solicitação), que só diferem nas propriedades de retry. Container:
+ * {@code prefetch = 1}, {@code ack} automático depois do retorno do listener e {@code defaultRequeueRejected = false}
+ * (nada volta para a fila sozinho). Retry sem estado: rejeições ({@link AmqpRejectAndDontRequeueException}) não fazem
+ * retry, e o erro técnico faz {@code maxRetries} retries com espera crescente e depois vai para a DLQ.
  */
 @Slf4j
 final class ListenerRetry {
@@ -19,7 +24,18 @@ final class ListenerRetry {
     private ListenerRetry() {
     }
 
-    static MethodInterceptor retry(int maxRetries, Duration initialInterval, double multiplier, Duration maxInterval) {
+    static SimpleRabbitListenerContainerFactory containerFactory(ConnectionFactory connectionFactory, int maxRetries,
+            Duration initialInterval, double multiplier, Duration maxInterval) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setAcknowledgeMode(AcknowledgeMode.AUTO);
+        factory.setPrefetchCount(1);
+        factory.setDefaultRequeueRejected(false);
+        factory.setAdviceChain(retry(maxRetries, initialInterval, multiplier, maxInterval));
+        return factory;
+    }
+
+    private static MethodInterceptor retry(int maxRetries, Duration initialInterval, double multiplier, Duration maxInterval) {
         return RetryInterceptorBuilder.stateless()
                 .maxRetries(maxRetries)
                 .backOffOptions(initialInterval.toMillis(), multiplier, maxInterval.toMillis())

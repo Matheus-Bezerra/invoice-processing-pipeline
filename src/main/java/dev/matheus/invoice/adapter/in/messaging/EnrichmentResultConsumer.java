@@ -2,9 +2,6 @@ package dev.matheus.invoice.adapter.in.messaging;
 
 import static dev.matheus.invoice.config.messaging.MessagingTopology.RESULT_QUEUE;
 
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -17,6 +14,7 @@ import dev.matheus.invoice.application.service.result.UnknownAccessKeyException;
 import dev.matheus.invoice.domain.AccessKey;
 import dev.matheus.invoice.domain.EnrichmentData;
 import dev.matheus.invoice.domain.exception.InvalidAccessKeyException;
+import dev.matheus.invoice.shared.JsonReadFailure;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.core.JacksonException;
@@ -54,7 +52,7 @@ class EnrichmentResultConsumer {
         try {
             result = jsonMapper.readValue(message.getBody(), EnrichmentResultMessage.class);
         } catch (JacksonException e) {
-            throw malformed(null, readFailure(e));
+            throw malformed(null, JsonReadFailure.describe(e));
         }
         if (result == null || result.messageId() == null) {
             throw malformed(result, "messageId ausente");
@@ -71,15 +69,6 @@ class EnrichmentResultConsumer {
         }
         return new EnrichmentResultCommand(result.messageId(), result.correlationId(), accessKey,
                 new EnrichmentData(payload.cnpj(), payload.amount(), payload.issueDate(), payload.cancelled()));
-    }
-
-    /** Só o caminho do campo: a mensagem do Jackson traz o valor recebido, que não vai para o log. */
-    private static String readFailure(JacksonException e) {
-        String path = e.getPath().stream()
-                .map(JacksonException.Reference::getPropertyName)
-                .filter(Objects::nonNull)
-                .collect(Collectors.joining("."));
-        return path.isEmpty() ? "JSON inválido" : "campo com tipo ou formato ilegível: " + path;
     }
 
     private static AmqpRejectAndDontRequeueException malformed(EnrichmentResultMessage result, String reason) {

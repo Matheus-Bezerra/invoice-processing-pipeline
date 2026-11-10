@@ -2,15 +2,14 @@ package dev.matheus.invoice.adapter.in.web.webhook.verification;
 
 import dev.matheus.invoice.adapter.in.web.webhook.dto.EnrichmentResultRequest;
 import dev.matheus.invoice.adapter.in.web.webhook.exception.MalformedResultException;
-import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import dev.matheus.invoice.domain.AccessKey;
 import dev.matheus.invoice.domain.exception.InvalidAccessKeyException;
+import dev.matheus.invoice.shared.JsonReadFailure;
 import lombok.RequiredArgsConstructor;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
@@ -35,7 +34,7 @@ public class EnrichmentResultParser {
         try {
             result = jsonMapper.readValue(body, EnrichmentResultRequest.class);
         } catch (JacksonException e) {
-            throw new MalformedResultException(readFailure(e));
+            throw new MalformedResultException(JsonReadFailure.describe(e));
         }
         if (result == null || result.messageId() == null) {
             throw new MalformedResultException("messageId ausente");
@@ -52,12 +51,4 @@ public class EnrichmentResultParser {
         return new ParsedResult(result.messageId(), result.correlationId());
     }
 
-    /** Só o caminho do campo: a mensagem do Jackson traz o valor recebido, que não pode ir para a resposta nem para o log. */
-    private static String readFailure(JacksonException e) {
-        String path = e.getPath().stream()
-                .map(JacksonException.Reference::getPropertyName)
-                .filter(Objects::nonNull)
-                .collect(Collectors.joining("."));
-        return path.isEmpty() ? "JSON inválido" : "campo com tipo ou formato ilegível: " + path;
-    }
 }

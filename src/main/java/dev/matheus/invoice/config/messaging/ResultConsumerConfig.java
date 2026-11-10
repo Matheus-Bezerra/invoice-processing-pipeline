@@ -2,7 +2,6 @@ package dev.matheus.invoice.config.messaging;
 
 import java.time.Duration;
 
-import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,12 +26,6 @@ class ResultConsumerConfig {
             @Value("${invoice.messaging.result-retry.initial-interval}") Duration initialInterval,
             @Value("${invoice.messaging.result-retry.multiplier}") double multiplier,
             @Value("${invoice.messaging.result-retry.max-interval}") Duration maxInterval) {
-        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-        factory.setConnectionFactory(connectionFactory);
-        factory.setAcknowledgeMode(AcknowledgeMode.AUTO);
-        factory.setPrefetchCount(1);
-        factory.setDefaultRequeueRejected(false);
-        factory.setAdviceChain(ListenerRetry.retry(maxRetries, initialInterval, multiplier, maxInterval));
-        return factory;
+        return ListenerRetry.containerFactory(connectionFactory, maxRetries, initialInterval, multiplier, maxInterval);
     }
 }
