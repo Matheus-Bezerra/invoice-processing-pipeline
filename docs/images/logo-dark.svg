@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 128" width="470" height="128" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif">
+  <title>FiscalFlow</title>
+  <rect x="8" y="12" width="104" height="104" rx="18" fill="#14b8a6"/>
+  <path d="M34 30 H74 V22 L96 37 L74 52 V44 H48 V58 H72 V72 H48 V98 H34 Z" fill="#0f172a"/>
+  <text x="142" y="82" font-size="54" font-weight="800" letter-spacing="-2" fill="#f0f6fc">FiscalFlow</text>
+</svg>

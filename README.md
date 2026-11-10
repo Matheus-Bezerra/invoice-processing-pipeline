@@ -1,4 +1,9 @@
-# FiscalFlow
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.svg">
+    <img src="docs/images/logo.svg" alt="FiscalFlow" width="420">
+  </picture>
+</p>
 
 Serviço de back end que recebe a chave de acesso de uma nota fiscal, grava a nota em `IN_ANALYSIS` e pede o enriquecimento a um provedor por mensageria. Quando o resultado chega, aprova ou rejeita a nota, **sem perder mensagens e sem aplicar o mesmo resultado duas vezes**.
 
