@@ -178,7 +178,7 @@ Uma nota rejeitada mantém `approvedAt` vazio e grava um `rejectionReason` legí
 flowchart TD
     A["POST /webhooks/enrichment-results recebido"] --> B{"X-Signature presente e igual ao HMAC-SHA256 do corpo bruto?"}
     B -- "não" --> R401["401 Unauthorized, nada é publicado"]
-    B -- "sim" --> C{"JSON válido, com messageId e payload.accessKey, e campos legíveis?"}
+    B -- "sim" --> C{"JSON válido, com messageId e payload.accessKey (44 dígitos), e campos legíveis?"}
     C -- "não" --> R400["400 Bad Request, nada é publicado"]
     C -- "sim" --> D["Publica EnrichmentResult em invoice.enrichment, routing key result"]
     D --> E{"ack do broker e sem devolução?"}

@@ -75,19 +75,19 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 ## Fatia 6B — `invoice-webhook` (perfil `webhook`)
 
-- [ ] Perfil `webhook` sobe só com RabbitMQ, sem datasource, JPA nem Flyway, com health check
-- [ ] `POST /webhooks/enrichment-results` com interface e Swagger em português, e Swagger UI funcionando
-- [ ] Verificação do HMAC-SHA256 sobre o corpo bruto, em tempo constante, com o segredo vindo do ambiente
-- [ ] Validação do payload (mesmas regras de malformada de 3.2) e erros em `problem+json`, em português
-- [ ] Port `EnrichmentResultPublisher` e publicação com *publisher confirm* correlacionado, `mandatory` e *returns*
-- [ ] **H1** (W): assinatura válida e resultado bem formado publica e responde `202`
-- [ ] **H2** (W): sem `X-Signature` ou mal formada responde `401` e não publica
-- [ ] **H3** (W): corpo alterado depois de assinado responde `401` e não publica
-- [ ] **H4** (W): payload malformado responde `400` e não publica (um teste por motivo)
-- [ ] **H5** (A, W): falha na publicação (`nack`, timeout ou devolução) responde `503`
-- [ ] **H7** (W): Swagger UI disponível e documentando o endpoint em português
-- [ ] **H8** (W): o perfil sobe sem datasource, sem JPA e sem Flyway
-- [ ] Logs em português, sem o segredo, sem a assinatura e sem CNPJ ou valor
+- [x] Perfil `webhook` sobe só com RabbitMQ, sem datasource, JPA nem Flyway, com health check
+- [x] `POST /webhooks/enrichment-results` com interface e Swagger em português, e Swagger UI funcionando
+- [x] Verificação do HMAC-SHA256 sobre o corpo bruto, em tempo constante, com o segredo vindo do ambiente
+- [x] Validação do payload (mesmas regras de malformada de 3.2) e erros em `problem+json`, em português
+- [x] Port `EnrichmentResultPublisher` e publicação com *publisher confirm* correlacionado, `mandatory` e *returns*
+- [x] **H1** (W): assinatura válida e resultado bem formado publica e responde `202`
+- [x] **H2** (W): sem `X-Signature` ou mal formada responde `401` e não publica
+- [x] **H3** (W): corpo alterado depois de assinado responde `401` e não publica
+- [x] **H4** (W): payload malformado responde `400` e não publica (um teste por motivo)
+- [x] **H5** (A, W): falha na publicação (`nack`, timeout ou devolução) responde `503`
+- [x] **H7** (W): Swagger UI disponível e documentando o endpoint em português
+- [x] **H8** (W): o perfil sobe sem datasource, sem JPA e sem Flyway
+- [x] Logs em português, sem o segredo, sem a assinatura e sem CNPJ ou valor
 
 ## Fatia 6C — Simulador do provedor e Compose
 

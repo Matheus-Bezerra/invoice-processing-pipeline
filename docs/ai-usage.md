@@ -260,6 +260,50 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 - O `docker compose down` é obrigatório para quem já tinha a fila antiga criada (ambientes antigos). Entra no README (fatia 9).
 - Os logs de falha do próprio Spring AMQP continuam em inglês, como na fatia 5.
 
+## Fatia 6B — `invoice-webhook` (perfil `webhook`)
+
+### Fontes consultadas
+
+| Item | Fonte |
+|---|---|
+| Classes de autoconfiguration do Boot 4 a excluir no perfil `webhook` (`DataSource`, transação JDBC, `JdbcClient`, `JdbcTemplate`, health do banco, Hibernate/JPA, repositórios JPA e Flyway) | Listagem dos jars `spring-boot-jdbc`, `spring-boot-hibernate`, `spring-boot-data-jpa` e `spring-boot-flyway` no Maven local (`unzip -l`). No Boot 4 elas moraram em pacotes novos, diferentes do Boot 3 |
+| `MessageDigest.isEqual`, `HexFormat` e `Mac` (HmacSHA256) | API padrão do JDK 25 |
+
+### O que a IA gerou
+
+- Testes primeiro, confirmados vermelhos (28 erros de compilação): `EnrichmentResultPublishingServiceTest` (A), `EnrichmentWebhookControllerTest` (W: H1 a H5, ordem das verificações, valor recebido fora da resposta), `SignatureVerifierTest`, `RabbitEnrichmentResultPublisherTest` (RabbitMQ real: corpo idêntico, propriedades, devolução e nack) e `WebhookProfileTest` (H7 e H8, só com o RabbitMQ).
+- `EnrichmentResultPublisher` (port), `ResultPublishFailedException`, `EnrichmentResultPublishingService`, `ConfirmedPublisher` (extraído de `RabbitEnrichmentRequestPublisher` e reaproveitado), `RabbitEnrichmentResultPublisher`, `SignatureVerifier`, `EnrichmentResultParser`, `EnrichmentResultRequest`, `EnrichmentWebhookApi`, `EnrichmentWebhookController`, `WebhookExceptionHandler`, `application-webhook.yml` e `RabbitOnlyTestcontainersConfiguration`.
+- `@Profile("!webhook")` em 9 beans de banco ou de relay, para o perfil `webhook` não carregar persistência.
+
+### Decisões tomadas com o autor
+
+- O webhook confere o formato da `accessKey` (44 dígitos), além de exigir a presença. Chave fora do formato responde `400` na hora, igual à regra do consumer de resultado.
+- `WEBHOOK_HMAC_SECRET` sem valor padrão: sem a variável o perfil não sobe. Os testes definem o próprio segredo.
+- Corpo publicado exatamente como chegou (`byte[]`), sem reserializar: a assinatura é sobre os bytes, e o consumer lê o mesmo conteúdo.
+- O publisher do resultado preenche `messageId` e `correlationId` nas propriedades AMQP, o que fecha a pendência da fatia 5 (o log `Tentativas esgotadas` vinha sem ids).
+
+### O que foi revisado ou corrigido
+
+- Erro de tipo na primeira compilação: `MessageBuilder.withBody(...)` devolve `MessageBuilderSupport<Message>`, não `MessageBuilder`.
+- Os 28 testes do controller falharam na primeira execução por eu ter esquecido de definir o segredo no `@WebMvcTest`. O `SignatureVerifier` recusou subir, que é o comportamento desejado.
+- O primeiro `curl` manual devolveu `415` em tudo: o erro era do meu script (aspas dentro da expansão do `-H` quebraram o `Content-Type`), não da aplicação. Refeito com um array de argumentos.
+- Corpo ausente passa pela verificação da assinatura antes de virar `400` (`@RequestBody(required = false)`), para a ordem assinatura, payload, publicação valer também para corpo vazio.
+- O motivo do `400` traz só o caminho do campo (`payload.amount`); o valor recebido não vai para a resposta nem para o log (há um teste para isso).
+- `readFailure` agora existe em três lugares (dois consumers e o parser do webhook), porque ficam em pacotes diferentes e são pequenos. Se uma quarta cópia surgir, vale extrair.
+
+### Verificação executada
+
+- `./mvnw verify`: 204 testes, 0 falhas (41 novos).
+- `grep`: `application` não importa `org.springframework.amqp`, `web`, `http`, `adapter` nem `config`; `domain` limpo; os logs do webhook não citam segredo, assinatura, CNPJ ou valor.
+- Manual, com o jar no perfil `webhook` contra o RabbitMQ do Compose: o health respondeu `UP` e o log não tem nenhuma menção a Hikari, Flyway, Hibernate ou DataSource. Callback assinado com `openssl` gerou `202` (enviado duas vezes: duas mensagens com o mesmo `messageId` na `invoice.enrichment.result`); corpo adulterado gerou `401`; sem assinatura gerou `401`; `amount` ilegível assinado gerou `400` com `payload.amount`. A Swagger UI abriu e o OpenAPI saiu em português. As duas mensagens de teste foram apagadas da fila e o `worker`, que eu tinha parado para isso, foi religado.
+
+### O que falta verificar
+
+- O fluxo completo (solicitação, provedor, callback, nota `APPROVED`) só existe com o simulador e o Compose da fatia 6C, e H1 e H6 em nível I ficam para a 7.
+- Erros genéricos do framework no webhook (por exemplo `405`) saem em `problem+json`, mas com texto padrão em inglês, como na `api`.
+- Não há limite de tamanho do corpo além do padrão do servidor; vale olhar na revisão de segurança (fatia 8), junto com replay e SSRF.
+- O `invoice-webhook` ainda não tem serviço no Compose nem `WEBHOOK_HMAC_SECRET` no `.env.example` (fatia 6C).
+
 ## Reformulação antes da fatia 6 — provedor via webhook
 
 Só documentação (`spec.md`, `flow.md`, `checklist.md`, `CLAUDE.md`). Nenhum código, `pom.xml`, Compose ou teste foi alterado, e a fatia 6 não foi implementada.

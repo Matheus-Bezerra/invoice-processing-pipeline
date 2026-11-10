@@ -109,7 +109,7 @@ docker compose up --build          # postgres, rabbitmq, api (8080), worker (808
 docker compose down                # derruba tudo
 ```
 
-Hoje o Compose sobe só `postgres`, `rabbitmq`, `api` e `worker` (o `worker` já consome a solicitação, mas `PROVIDER_BASE_URL` só ganha um provedor na fatia 6C). `invoice-webhook` e `provider-simulator` entram nas fatias 6B e 6C.
+Hoje o Compose sobe só `postgres`, `rabbitmq`, `api` e `worker` (o `worker` já consome a solicitação, mas `PROVIDER_BASE_URL` só ganha um provedor na fatia 6C). O perfil `webhook` já existe no código (6B), mas `invoice-webhook` e `provider-simulator` só entram no Compose na fatia 6C.
 
 Rodar localmente fora do Compose (com `postgres` e `rabbitmq` do Compose no ar):
 
@@ -117,7 +117,7 @@ Rodar localmente fora do Compose (com `postgres` e `rabbitmq` do Compose no ar):
 docker compose up -d postgres rabbitmq
 SPRING_PROFILES_ACTIVE=api ./mvnw spring-boot:run      # API em :8080, Swagger em /swagger-ui.html
 SPRING_PROFILES_ACTIVE=worker ./mvnw spring-boot:run   # worker, health em :8081/actuator/health
-SPRING_PROFILES_ACTIVE=webhook ./mvnw spring-boot:run  # webhook em :8082, Swagger em /swagger-ui.html (só precisa do rabbitmq)
+WEBHOOK_HMAC_SECRET=segredo-local SPRING_PROFILES_ACTIVE=webhook ./mvnw spring-boot:run  # webhook em :8082, Swagger em /swagger-ui.html (só precisa do rabbitmq; o segredo é obrigatório e não tem padrão)
 ```
 
 Health check: `curl localhost:8080/actuator/health` (api), `curl localhost:8081/actuator/health` (worker) e `curl localhost:8082/actuator/health` (invoice-webhook).

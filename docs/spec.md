@@ -120,6 +120,7 @@ Ordem de verificação: assinatura, depois payload, depois publicação.
 Garantias:
 
 - A assinatura é comparada em tempo constante e sobre os bytes exatos recebidos, antes de qualquer parse do JSON.
+- A `payload.accessKey` também é conferida no formato (44 dígitos), a mesma regra do consumer de resultado: chave fora do formato recebe `400` já no webhook.
 - O webhook **não valida regra de negócio** (CNPJ, valor, cancelamento): só o formato da mensagem. A decisão de aprovar ou rejeitar continua no consumer do resultado.
 - Um mesmo callback recebido duas vezes é publicado duas vezes. O consumer descarta a duplicata por `processed_messages`.
 - O webhook não acessa o banco e não sabe se a chave existe. Chave inexistente continua indo para a DLQ do resultado (4.5).
@@ -411,7 +412,7 @@ Usa Testcontainers (RabbitMQ e PostgreSQL) e cobre publicação, consumo e reent
 - Configuração por `application.yml` e variáveis de ambiente. Valores de exemplo em `.env.example`, sem credenciais reais versionadas.
 - Docker Compose sobe `postgres`, `rabbitmq`, `api`, `worker`, `invoice-webhook` e `provider-simulator`, com *healthchecks* e dependências entre eles. `api`, `worker` e `invoice-webhook` usam a mesma imagem, com perfis diferentes.
 - Portas: `api` 8080, `worker` 8081, `invoice-webhook` 8082 e `provider-simulator` 8083. O Swagger do webhook fica em `localhost:8082/swagger-ui.html`.
-- O segredo do webhook (`WEBHOOK_HMAC_SECRET`) vem do `.env`, com valor de exemplo apenas local no `.env.example`. O `worker` conhece `PROVIDER_BASE_URL`, e o simulador conhece `WEBHOOK_URL`.
+- O segredo do webhook (`WEBHOOK_HMAC_SECRET`) vem do `.env`, com valor de exemplo apenas local no `.env.example`. Ele não tem valor padrão na aplicação: sem a variável, o perfil `webhook` não sobe. O `worker` conhece `PROVIDER_BASE_URL`, e o simulador conhece `WEBHOOK_URL`.
 
 Parâmetros configuráveis, com os padrões:
 
