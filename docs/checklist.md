@@ -121,10 +121,10 @@ Só verificação: nenhuma funcionalidade nova. Os prompts dos agentes serão de
 
 - [x] Agente de revisão de segurança (por exemplo, segredos, entradas, SQL, logs com dados sensíveis, imagens e Compose, e o webhook: HMAC em tempo constante, segredo fora dos logs, replay e SSRF)
   - [x] Achado: corpo do webhook sem limite antes do HMAC (DoS por memória). Corrigido com leitura limitada e `413` (**H9**)
-- [ ] Agente de revisão de boas práticas de código (arquitetura hexagonal, convenções do `CLAUDE.md`, código sem uso)
-- [ ] Revisão de aderência à spec (contratos, regras e cenários T1–T10 e E1–E10 cobertos)
-- [ ] Achados triados: corrigidos ou registrados como limitação
-- [ ] Build e todos os testes passando depois das correções
+- [x] Agente de revisão de boas práticas de código (arquitetura hexagonal, convenções do `CLAUDE.md`, código sem uso)
+- [x] Revisão de aderência à spec (contratos, regras e cenários T1–T10 e E1–E10 cobertos)
+- [x] Achados triados: corrigidos ou registrados como limitação
+- [x] Build e todos os testes passando depois das correções
 
 ## Fatia 9 — README
 

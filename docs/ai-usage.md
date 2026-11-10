@@ -453,7 +453,7 @@ Chamar a função de processamento duas vezes não prova reentrega: ela precisa 
 1. **Consumidor de teste (`BrokerRedeliveryIntegrationTest`).** Um consumidor com `ack` manual recebe o resultado e fecha o canal **sem confirmar**. O RabbitMQ devolve a mensagem à fila e a entrega de novo com `redelivered = true`, que o teste confere. Prova o comportamento do broker, sem consumer real.
 2. **Consumer real (`ResultRedeliveryIntegrationTest`).** Um interceptador só de testes é colocado **fora** do retry do consumer (primeiro da cadeia de advices da `resultListenerContainerFactory`). Ele deixa o consumer real processar e dar commit na 1ª entrega e, depois, lança `ImmediateRequeueAmqpException`, que faz o container dar `nack` com requeue. O broker reentrega com `redelivered = true`; na 2ª entrega o consumer vê o `messageId` em `processed_messages`, não altera nada e dá `ack`. O teste confere a nota atualizada uma única vez (mesmo `approvedAt` nas duas entregas), uma linha em `processed_messages` e a DLQ vazia. Dentro do retry, a exceção reexecutaria o processamento em vez de devolver a mensagem ao broker, por isso o interceptador fica por fora.
 
-## Fatia 8 — Validação e revisão (em andamento)
+## Fatia 8 — Validação e revisão
 
 ### Revisão de segurança
 
@@ -465,4 +465,14 @@ Chamar a função de processamento duas vezes não prova reentrega: ela precisa 
 - **Mesmo risco nos outros endpoints:** `POST /invoices` e `POST /enrichment-requests` (simulador) também liam o corpo sem teto. Corrigido com um `BodySizeLimitFilter` em cada projeto (`413` acima de 8 KB, `Content-Length` conferido sem ler e *chunked* lido até `limite + 1` bytes). Sem testes automatizados novos, a pedido do autor. Verificado à mão com `curl` contra a `api` real (Postgres e RabbitMQ do Compose) e contra o simulador: corpo válido (`201`, `200` na repetição, `202`), 200 KB com `Content-Length` e em *chunked* (`413`), 1 GB declarado sem enviar (`413` na hora), chave inválida (`400`) e Swagger (`200`).
 - **Achado 3 corrigido (nota presa em `IN_ANALYSIS`):** a rejeição gravava o `cnpj` e o `amount` recebidos; se não coubessem na coluna (`cnpj` acima de 14 caracteres, `amount` acima de `NUMERIC(15,2)`), o `UPDATE` falhava e a mensagem ia para a DLQ após 3 retries. Os dois testes de persistência escritos antes da correção reproduziram o erro. Agora `Invoice` grava na rejeição só o que cabe (o resto fica nulo) e trata `amount` acima de 13 dígitos inteiros como dado inválido ("amount acima do limite"), o que também evita **aprovar** uma nota que não poderia ser gravada. O limite é calculado por `precision - scale`, sem expandir o número, para que `1E+1000000000` não gaste memória. Decisão do autor: tratar as duas partes. Spec (4.2, 4.4, E2), `flow.md` e `CLAUDE.md` atualizados.
 - **Decidido pelo autor:** os achados 4 (senhas padrão), 5 (`3xx` do provedor) e 7 (segredo de exemplo fraco) ficam como estão: o `.env` é o que importa nesse contexto. Registrar no README como limitações.
-- **Falta:** os achados Informativos (imagens sem digest, usuário único do RabbitMQ, `415` antes de `401`, `amount` com mais de 2 casas arredondado, Maven Wrapper sem checksum, `.claude/` fora do `.gitignore`), e as outras duas revisões da fatia 8 (boas práticas e aderência à spec).
+- **Informativos registrados como limitações (README):** imagens sem digest, usuário único do RabbitMQ, `415` antes de `401`, `amount` com mais de 2 casas arredondado, Maven Wrapper sem checksum. `.claude/agents/` fica versionado, como evidência do uso de IA.
+
+### Revisão de boas práticas
+
+- O agente `software-architect` (`.claude/agents/software-architect.md`) foi executado pelo autor em outro chat, e as correções também foram feitas pelo autor lá. Neste chat o item foi só confirmado, sem nova execução.
+
+### Aderência à spec
+
+- **O que a IA fez:** cruzou todos os cenários da seção 7 (T1–T10, E1–E10, C1–C4, H1–H9) com os métodos de teste existentes. Todos têm teste no nível pedido, sem lacunas.
+- **Build final:** `./mvnw verify` com 228 testes, 0 falhas, `BUILD SUCCESS`; o simulador compila com `./mvnw package`.
+- **Para verificar:** a rastreabilidade é por nome de teste. T2, T4–T6, T10 e E1–E3, E6, E7, E9, E10 não levam o ID no nome, então a conferência foi semântica.
