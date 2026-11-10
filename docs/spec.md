@@ -1,4 +1,4 @@
-# Invoice Processing Pipeline — Especificação
+# FiscalFlow — Especificação
 
 Este documento é o contrato para a implementação e para os testes. O desenho do fluxo está em [flow.md](flow.md). Regras de negócio e decisões estão no [DESAFIO.md](../DESAFIO.md).
 

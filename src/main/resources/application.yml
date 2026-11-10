@@ -1,6 +1,6 @@
 spring:
   application:
-    name: invoice
+    name: fiscal-flow
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/invoice}
     username: ${DB_USER:invoice}

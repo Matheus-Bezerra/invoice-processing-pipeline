@@ -16,6 +16,9 @@ spring:
       - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
 
 invoice:
+  openapi:
+    title: FiscalFlow · Webhook do provedor
+    description: Recebe o resultado do enriquecimento assinado com HMAC-SHA256 e o publica na fila.
   webhook:
     # Sem valor padrão de propósito: sem WEBHOOK_HMAC_SECRET a aplicação não sobe.
     hmac-secret: ${WEBHOOK_HMAC_SECRET:}

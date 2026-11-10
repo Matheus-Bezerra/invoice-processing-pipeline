@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>dev.matheus</groupId>
-	<artifactId>invoice</artifactId>
+	<artifactId>fiscal-flow</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>invoice</name>
-	<description>Pipeline de processamento de notas fiscais (desafio)</description>
+	<name>fiscal-flow</name>
+	<description>FiscalFlow: processamento assíncrono de notas fiscais (desafio)</description>
 	<properties>
 		<java.version>25</java.version>
 		<springdoc.version>3.2.0</springdoc.version>

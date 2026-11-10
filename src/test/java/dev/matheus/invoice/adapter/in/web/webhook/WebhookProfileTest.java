@@ -68,6 +68,7 @@ class WebhookProfileTest {
         assertThat(docs.body()).contains("/webhooks/enrichment-results")
                 .contains("X-Signature")
                 .contains("assinatura")
+                .contains("FiscalFlow · Webhook do provedor")
                 .doesNotContain("/invoices");
         assertThat(get("/swagger-ui/index.html").statusCode()).isEqualTo(200);
     }

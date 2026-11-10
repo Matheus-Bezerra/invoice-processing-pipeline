@@ -1,4 +1,4 @@
-# Invoice Processing Pipeline — Fluxo e desenho
+# FiscalFlow — Fluxo e desenho
 
 Este documento descreve o funcionamento do serviço de ponta a ponta. Ele é a referência para a implementação e será linkado no README.
 

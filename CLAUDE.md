@@ -4,7 +4,7 @@ Orientações para quem for implementar este projeto. Leia antes de qualquer tar
 
 ## O que é
 
-Desafio de estudo: serviço que recebe a chave de acesso (44 dígitos) de uma nota fiscal, grava a nota em `IN_ANALYSIS`, pede o enriquecimento por mensageria (outbox + RabbitMQ) e, ao receber o resultado de um provedor simulado, aprova ou rejeita a nota. O provedor fala HTTP: o `worker` repassa a solicitação por `POST`, o provedor responde `202` e devolve o resultado chamando um **webhook assinado (HMAC)**, que publica o resultado na fila.
+**FiscalFlow** (artefato Maven `fiscal-flow`; o pacote continua `dev.matheus.invoice`). Desafio de estudo: serviço que recebe a chave de acesso (44 dígitos) de uma nota fiscal, grava a nota em `IN_ANALYSIS`, pede o enriquecimento por mensageria (outbox + RabbitMQ) e, ao receber o resultado de um provedor simulado, aprova ou rejeita a nota. O provedor fala HTTP: o `worker` repassa a solicitação por `POST`, o provedor responde `202` e devolve o resultado chamando um **webhook assinado (HMAC)**, que publica o resultado na fila.
 
 ## Leia primeiro
 

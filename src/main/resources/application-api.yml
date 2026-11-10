@@ -2,6 +2,9 @@ server:
   port: 8080
 
 invoice:
+  openapi:
+    title: FiscalFlow · API de notas fiscais
+    description: Cadastra e consulta notas fiscais. O enriquecimento acontece de forma assíncrona, por mensageria.
   api:
     # Teto do corpo das requisições, conferido antes de desserializar o JSON (413 acima disso). O corpo real tem ~70 bytes.
     max-body-bytes: 8192
