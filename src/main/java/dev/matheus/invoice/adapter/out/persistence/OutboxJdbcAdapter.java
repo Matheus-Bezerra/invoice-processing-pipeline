@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -16,6 +17,7 @@ import dev.matheus.invoice.domain.AccessKey;
 import lombok.RequiredArgsConstructor;
 
 @Repository
+@Profile("!webhook")
 @RequiredArgsConstructor
 class OutboxJdbcAdapter implements OutboxPort {
 

@@ -1,0 +1,27 @@
+# Perfil do invoice-webhook: recebe o callback assinado do provedor e publica o resultado na fila. Não usa banco,
+# então DataSource, JPA e Flyway ficam de fora (os beans de persistência têm @Profile("!webhook")).
+server:
+  port: 8082
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.health.DataSourceHealthContributorAutoConfiguration
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+
+invoice:
+  webhook:
+    # Sem valor padrão de propósito: sem WEBHOOK_HMAC_SECRET a aplicação não sobe.
+    hmac-secret: ${WEBHOOK_HMAC_SECRET:}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

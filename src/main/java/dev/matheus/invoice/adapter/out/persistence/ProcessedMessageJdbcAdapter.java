@@ -4,6 +4,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +12,7 @@ import dev.matheus.invoice.application.port.out.ProcessedMessageStore;
 import lombok.RequiredArgsConstructor;
 
 @Repository
+@Profile("!webhook")
 @RequiredArgsConstructor
 class ProcessedMessageJdbcAdapter implements ProcessedMessageStore {
 

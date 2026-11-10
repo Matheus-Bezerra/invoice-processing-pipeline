@@ -7,6 +7,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
  * a tarefa é rejeitada e o relay do worker publica a solicitação, sem segurar o request.
  */
 @Configuration(proxyBeanMethods = false)
+@Profile("!webhook")
 class ImmediatePublishConfig {
 
     @Bean

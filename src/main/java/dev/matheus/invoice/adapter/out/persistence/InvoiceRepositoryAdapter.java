@@ -3,6 +3,7 @@ package dev.matheus.invoice.adapter.out.persistence;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import dev.matheus.invoice.application.port.out.InvoiceRepository;
@@ -11,6 +12,7 @@ import dev.matheus.invoice.domain.Invoice;
 import lombok.RequiredArgsConstructor;
 
 @Repository
+@Profile("!webhook")
 @RequiredArgsConstructor
 class InvoiceRepositoryAdapter implements InvoiceRepository {
 
