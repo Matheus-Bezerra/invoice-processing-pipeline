@@ -412,3 +412,43 @@ Só documentação (`spec.md`, `flow.md`, `checklist.md`, `CLAUDE.md`). Nenhum c
 - **Estrutura:** `config` (`SimulatorProperties`), `controller` (`EnrichmentRequestController`), `model` (`EnrichmentRequest`, `EnrichmentResult`) e `service` (`RequestDeduplicator`, `HmacSigner`, `WebhookCallbackSender`). A `ProviderSimulatorApplication` fica na raiz, e o `@ConfigurationPropertiesScan` continua achando a `SimulatorProperties` nos subpacotes.
 - **Visibilidade:** o que passou a cruzar pacotes virou `public` (os dois records e seus métodos usados fora, as três classes de `service` e seus métodos de entrada). O controller continua *package-private*.
 - **Verificação:** `./mvnw package` do simulador compila; no Compose, o simulador reconstruído manteve o fluxo (nota `APPROVED` com o CNPJ esperado) e o `400` para corpo inválido. Nenhum comportamento mudou.
+
+## Fatia 7 — Integração com o broker real
+
+### O que a IA gerou
+
+- Pacote de testes `src/test/java/dev/matheus/invoice/integration/`, dividido por assunto como o `main` (`invoice/`, `outbox/`, `result/`, `webhook/`) e com o apoio em `support/` (classes `public`, já que cruzam pacotes): a base `IntegrationTestSupport` (um par de containers PostgreSQL e RabbitMQ por JVM, compartilhado, e a tag `integration`), o `FakeProvider` (servidor HTTP do JDK que imita o simulador: `202`, depois callback assinado com o `messageId` derivado), o `WebhookApp` (2º contexto Spring com o perfil `webhook`) e seis classes de teste.
+- Perfis Maven `integration` e `unit` no `pom.xml`. Sem perfil, o build roda tudo, como antes.
+- Nenhuma mudança em código de produção.
+
+### Decisões tomadas com o autor
+
+- **Webhook em um 2º contexto** dentro do teste: o perfil `webhook` não convive com `api`/`worker` (sem datasource, beans diferentes).
+- **Testes de integração em pacote próprio, com comando separado** (`-Pintegration`), mas também rodando junto no `./mvnw verify`.
+- **T9 com `docker pause` num RabbitMQ só do teste.** O autor perguntou se parar o broker não atrapalharia os outros testes; por isso o broker compartilhado nunca é pausado.
+
+### Achados e correções durante a fatia
+
+- **O 2º contexto não pode usar a `InvoiceApplication`.** Fora do `@SpringBootTest` não há o filtro que exclui as `@TestConfiguration` do component scan, que subiriam containers sozinhas. O `WebhookApp` tem uma configuração própria, com exclusão explícita.
+- **Propriedades do 2º contexto como argumentos de linha de comando.** Com `.properties(...)` (propriedades padrão, menor precedência), o `application-webhook.yml` (`hmac-secret: ${WEBHOOK_HMAC_SECRET:}`) sobrescrevia o segredo com vazio e o contexto não subia.
+- **Broker pausado e canais novos.** O timeout de conexão não cobre abrir um canal numa conexão já aberta (o padrão da espera é 10 minutos); o T9 define `spring.rabbitmq.channel-rpc-timeout=1s`.
+- **Falha intermitente (1 em ~7 execuções) no T1,** que não era do T1: o `@AfterAll` do T9 parava o RabbitMQ antes de o Spring fechar o contexto (`@DirtiesContext`), e o erro de conexão numa thread solta era atribuído ao teste seguinte pelo Awaitility (que captura exceções não tratadas de qualquer thread). Corrigido deixando o Testcontainers remover o broker no fim da JVM. Depois disso, 8 execuções seguidas sem falha.
+- **Contextos com worker são descartados no fim da classe** (`@DirtiesContext`): o broker é compartilhado, e um worker esquecido em cache disputaria as filas com as outras classes.
+
+### Verificação executada
+
+- `./mvnw verify`: 215 testes, 0 falhas (205 anteriores + 10 novos).
+- `./mvnw -Pintegration test`: 10 testes em 6 classes, 8 execuções seguidas sem falha depois da correção acima. `./mvnw -Punit test`: 205 testes. Nenhum container de teste sobrou depois das execuções.
+
+### O que falta verificar
+
+- **T9 simula a falha com o broker pausado, não derrubado.** A conexão aberta continua de pé, então a publicação falha por falta de *confirm* (e por timeout ao abrir canal), e não por conexão recusada (essa é coberta por `RabbitEnrichmentResultPublisherBrokerDownTest`). Como o broker processa o que ficou no *socket* ao despausar, o provedor pode receber a solicitação duas vezes; o teste confere que todas têm o mesmo `messageId` (entrega *at-least-once*).
+- **C3 em nível I usa `503` do provedor.** A falta de resposta (timeout) continua coberta em `EnrichmentRequestConsumerTest`.
+- O `messageId` da solicitação ser o `id` da linha do outbox só é conferido de ponta a ponta no T9, porque a linha é apagada depois da publicação.
+
+### Notas para o README (como a reentrega foi provocada)
+
+Chamar a função de processamento duas vezes não prova reentrega: ela precisa vir do RabbitMQ. Duas formas, no pacote `integration`:
+
+1. **Consumidor de teste (`BrokerRedeliveryIntegrationTest`).** Um consumidor com `ack` manual recebe o resultado e fecha o canal **sem confirmar**. O RabbitMQ devolve a mensagem à fila e a entrega de novo com `redelivered = true`, que o teste confere. Prova o comportamento do broker, sem consumer real.
+2. **Consumer real (`ResultRedeliveryIntegrationTest`).** Um interceptador só de testes é colocado **fora** do retry do consumer (primeiro da cadeia de advices da `resultListenerContainerFactory`). Ele deixa o consumer real processar e dar commit na 1ª entrega e, depois, lança `ImmediateRequeueAmqpException`, que faz o container dar `nack` com requeue. O broker reentrega com `redelivered = true`; na 2ª entrega o consumer vê o `messageId` em `processed_messages`, não altera nada e dá `ack`. O teste confere a nota atualizada uma única vez (mesmo `approvedAt` nas duas entregas), uma linha em `processed_messages` e a DLQ vazia. Dentro do retry, a exceção reexecutaria o processamento em vez de devolver a mensagem ao broker, por isso o interceptador fica por fora.

@@ -102,17 +102,17 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 ## Fatia 7 — Integração com o broker real
 
-- [ ] **T1** em nível I: o `POST` grava a nota e a solicitação chega à fila
-- [ ] **C1** em nível I: o `worker` repassa a solicitação por HTTP a um provedor de teste e recebe `202`
-- [ ] **C3** em nível I: provedor de teste fora do ar leva a 3 retries e à DLQ da solicitação
-- [ ] **H1** em nível I: o callback assinado ao `invoice-webhook` publica o resultado na fila
-- [ ] **H6** em nível I: o mesmo callback enviado duas vezes atualiza a nota uma única vez
-- [ ] **T3** em nível I: o resultado, entregue pelo webhook assinado, aprova a nota
-- [ ] **T7** em nível I: reentrega **provocada pelo broker** (consumidor de teste fecha o canal sem `ack` e a mensagem volta com `redelivered = true`)
-- [ ] **T7** em nível I com o **consumer real**: interceptador de teste fora do retry lança requeue depois do commit, o broker reentrega, e a nota é atualizada uma única vez (mesmo `approvedAt`), com uma linha em `processed_messages` e a DLQ vazia
-- [ ] **T8** em nível I: chave inexistente vai para a DLQ
-- [ ] **T9** em nível I: falha de publicação seguida de recuperação
-- [ ] Explicação de como a reentrega foi provocada anotada para o README
+- [x] **T1** em nível I: o `POST` grava a nota e a solicitação chega à fila
+- [x] **C1** em nível I: o `worker` repassa a solicitação por HTTP a um provedor de teste e recebe `202`
+- [x] **C3** em nível I: provedor de teste fora do ar leva a 3 retries e à DLQ da solicitação
+- [x] **H1** em nível I: o callback assinado ao `invoice-webhook` publica o resultado na fila
+- [x] **H6** em nível I: o mesmo callback enviado duas vezes atualiza a nota uma única vez
+- [x] **T3** em nível I: o resultado, entregue pelo webhook assinado, aprova a nota
+- [x] **T7** em nível I: reentrega **provocada pelo broker** (consumidor de teste fecha o canal sem `ack` e a mensagem volta com `redelivered = true`)
+- [x] **T7** em nível I com o **consumer real**: interceptador de teste fora do retry lança requeue depois do commit, o broker reentrega, e a nota é atualizada uma única vez (mesmo `approvedAt`), com uma linha em `processed_messages` e a DLQ vazia
+- [x] **T8** em nível I: chave inexistente vai para a DLQ
+- [x] **T9** em nível I: falha de publicação seguida de recuperação
+- [x] Explicação de como a reentrega foi provocada anotada para o README
 
 ## Fatia 8 — Validação e revisão
 
