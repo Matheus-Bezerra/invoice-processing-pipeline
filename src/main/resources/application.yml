@@ -45,6 +45,17 @@ invoice:
       initial-interval: ${RESULT_RETRY_INITIAL_INTERVAL:2s}
       multiplier: ${RESULT_RETRY_MULTIPLIER:2.0}
       max-interval: ${RESULT_RETRY_MAX_INTERVAL:8s}
+    # Consumer de solicitação (worker): mesma política do resultado, antes da DLQ da solicitação.
+    request-retry:
+      max-retries: ${REQUEST_RETRY_MAX_RETRIES:3}
+      initial-interval: ${REQUEST_RETRY_INITIAL_INTERVAL:2s}
+      multiplier: ${REQUEST_RETRY_MULTIPLIER:2.0}
+      max-interval: ${REQUEST_RETRY_MAX_INTERVAL:8s}
+  # Provedor externo chamado pelo worker (spec, seção 3.4).
+  provider:
+    base-url: ${PROVIDER_BASE_URL:http://localhost:8083}
+    connect-timeout: ${PROVIDER_CONNECT_TIMEOUT:2s}
+    read-timeout: ${PROVIDER_READ_TIMEOUT:5s}
 
 management:
   endpoints:

@@ -1,6 +1,7 @@
 package dev.matheus.invoice.adapter.out.messaging;
 
 import static dev.matheus.invoice.config.messaging.MessagingTopology.EXCHANGE;
+import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_DLQ;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_QUEUE;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_ROUTING_KEY;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.RESULT_DLQ;
@@ -53,6 +54,7 @@ class RabbitEnrichmentRequestPublisherTest {
     @Test
     void topologyIsDeclared() {
         assertThat(rabbitAdmin.getQueueProperties(REQUEST_QUEUE)).isNotNull();
+        assertThat(rabbitAdmin.getQueueProperties(REQUEST_DLQ)).isNotNull();
         assertThat(rabbitAdmin.getQueueProperties(RESULT_QUEUE)).isNotNull();
         assertThat(rabbitAdmin.getQueueProperties(RESULT_DLQ)).isNotNull();
     }

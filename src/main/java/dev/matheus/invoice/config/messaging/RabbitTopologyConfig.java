@@ -2,6 +2,8 @@ package dev.matheus.invoice.config.messaging;
 
 import static dev.matheus.invoice.config.messaging.MessagingTopology.DLX;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.EXCHANGE;
+import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_DLQ;
+import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_DLQ_ROUTING_KEY;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_QUEUE;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.REQUEST_ROUTING_KEY;
 import static dev.matheus.invoice.config.messaging.MessagingTopology.RESULT_DLQ;
@@ -20,7 +22,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Topologia declarada nos dois perfis (a declaração é idempotente): a api precisa do exchange para publicar e o
- * worker, das filas de resultado e da DLQ. Não há DLQ para a fila de solicitação, que é consumida pelo provedor.
+ * worker, das filas de solicitação e de resultado e das duas DLQs.
  */
 @Configuration(proxyBeanMethods = false)
 class RabbitTopologyConfig {
@@ -30,7 +32,11 @@ class RabbitTopologyConfig {
         DirectExchange exchange = ExchangeBuilder.directExchange(EXCHANGE).durable(true).build();
         DirectExchange deadLetterExchange = ExchangeBuilder.directExchange(DLX).durable(true).build();
 
-        Queue requestQueue = QueueBuilder.durable(REQUEST_QUEUE).build();
+        Queue requestQueue = QueueBuilder.durable(REQUEST_QUEUE)
+                .deadLetterExchange(DLX)
+                .deadLetterRoutingKey(REQUEST_DLQ_ROUTING_KEY)
+                .build();
+        Queue requestDlq = QueueBuilder.durable(REQUEST_DLQ).build();
         Queue resultQueue = QueueBuilder.durable(RESULT_QUEUE)
                 .deadLetterExchange(DLX)
                 .deadLetterRoutingKey(RESULT_DLQ_ROUTING_KEY)
@@ -41,10 +47,12 @@ class RabbitTopologyConfig {
                 exchange,
                 deadLetterExchange,
                 requestQueue,
+                requestDlq,
                 resultQueue,
                 resultDlq,
                 BindingBuilder.bind(requestQueue).to(exchange).with(REQUEST_ROUTING_KEY),
                 BindingBuilder.bind(resultQueue).to(exchange).with(RESULT_ROUTING_KEY),
+                BindingBuilder.bind(requestDlq).to(deadLetterExchange).with(REQUEST_DLQ_ROUTING_KEY),
                 BindingBuilder.bind(resultDlq).to(deadLetterExchange).with(RESULT_DLQ_ROUTING_KEY));
     }
 }
