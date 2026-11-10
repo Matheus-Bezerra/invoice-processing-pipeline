@@ -348,3 +348,67 @@ Só documentação (`spec.md`, `flow.md`, `checklist.md`, `CLAUDE.md`). Nenhum c
 
 - Tudo é desenho: nada foi executado. Os cenários C e H, a topologia da DLQ da solicitação e o perfil `webhook` sem datasource só serão exercitados nas fatias 6A a 7.
 - O HMAC sem timestamp permite replay; a limitação foi registrada e o efeito é contido pela idempotência do consumer.
+
+## Fatia 6C — Simulador do provedor e Compose
+
+### Fontes consultadas
+
+| Item | Fonte |
+|---|---|
+| Spring Boot 4.1.2, Java 25, Maven Wrapper 3.10.0, imagens `eclipse-temurin:25-*` | As mesmas versões já confirmadas na fatia 1; o wrapper foi copiado da raiz |
+| `RestClient` com `JdkClientHttpRequestFactory`, timeouts e `Redirect.NEVER` | Mesmo padrão do `ProviderHttpClient` (fatia 6A, conferido no bytecode do `spring-web-7.0.8`) |
+| HMAC-SHA256 (`Mac`, `HexFormat`) | API padrão do JDK 25, mesmo algoritmo do `SignatureVerifier` (fatia 6B) |
+
+### O que a IA gerou
+
+- Projeto `provider-simulator/` (pacote `dev.matheus.provider`): `pom.xml` (webmvc + actuator + Lombok, sem broker nem banco), wrapper, `Dockerfile`, `.dockerignore`, `application.yml` (porta 8083) e as classes `ProviderSimulatorApplication`, `SimulatorProperties`, `EnrichmentRequest`, `EnrichmentResult` (com o `messageId` derivado e o resultado aprovável), `EnrichmentRequestController`, `RequestDeduplicator`, `HmacSigner` e `WebhookCallbackSender`.
+- Serviços `invoice-webhook` e `provider-simulator` no `docker-compose.yml`, `PROVIDER_BASE_URL` no `worker`, as três variáveis novas no `.env.example` (e no `.env` local, com autorização do autor) e `provider-simulator` no `.dockerignore` da raiz.
+
+### Decisões tomadas com o autor
+
+- **Spring Boot mínimo** no simulador, em vez de JDK puro, com pacotes simples (sem a arquitetura hexagonal completa: é um fake de um sistema externo).
+- **Dedup sempre** pelo `messageId`, em memória: uma solicitação repetida recebe `202` sem novo callback, mesmo depois de reenvios esgotados. Registrado nas limitações da spec (seção 12).
+- **Sem testes automatizados no simulador.** A 6C não tem cenários T/E/C/H; o simulador foi validado só pelo fluxo no Compose (abaixo). Os cenários com provedor de teste ficam na fatia 7.
+- **Correção da 6B achada aqui** (ver abaixo): corrigida agora, com teste.
+
+### Decisões de implementação
+
+- O corpo do callback é serializado e assinado **uma vez**; os reenvios mandam os mesmos bytes, então a assinatura e o `messageId` não mudam.
+- O atraso e as esperas dos reenvios são agendados num `ScheduledExecutorService` (2 threads), sem `sleep`: o `202` sai na hora e nenhuma thread fica parada.
+- `4xx` do webhook e respostas inesperadas (por exemplo `3xx`) não são reenviados, só registrados em log. `5xx`, timeout e conexão recusada são.
+- O simulador confere o formato da chave (44 dígitos) e responde `400` se não bater: é o "provedor recusa com `4xx`" que a spec (4.8) espera para chave inválida publicada direto na fila.
+- `WEBHOOK_HMAC_SECRET` sem padrão também no simulador, e no Compose com `${WEBHOOK_HMAC_SECRET:?...}`: sem a variável, o `docker compose` falha com mensagem clara em vez de subir com segredo vazio.
+- O `worker` agora espera o `provider-simulator` ficar `healthy`, e o simulador espera o `invoice-webhook`, para as primeiras solicitações não caírem na DLQ na subida.
+- CNPJ fixo `12ABC34501DE35` (o exemplo da spec, já validado na fatia 2) e `amount` `1234.56`.
+
+### O que foi revisado ou corrigido
+
+- **Bug da 6B: webhook respondia `500` com o RabbitMQ fora**, e não `503` (spec 2.5). Achado ao derrubar o broker durante um callback. O `ConfirmedPublisher` só convertia as falhas de *confirm* em `MessagePublishException`; a `AmqpIOException`/`AmqpConnectException` lançada pelo próprio `rabbitTemplate.send` (conexão recusada, host que não resolve) passava direto e caía no handler genérico. O relay não era afetado, porque o `OutboxPublisherService` captura `RuntimeException`. Teste novo primeiro (`RabbitEnrichmentResultPublisherBrokerDownTest`, porta fechada, confirmado vermelho com `AmqpConnectException`), depois a correção no `ConfirmedPublisher`. No Compose, com o broker parado, o webhook passou a responder `503` com `Retry-After: 5`. Os testes H5 da 6B cobriam `nack`, timeout e devolução, mas não o broker fora.
+- O log de reenvio mostrava a espera como `PT1S` (formato ISO do `Duration`); trocado para milissegundos.
+
+### Verificação executada
+
+- `provider-simulator`: `./mvnw package` compila.
+- `./mvnw verify` na raiz: 205 testes, 0 falhas (204 + o novo).
+- `docker compose down` e `up --build --force-recreate`: os seis serviços `healthy`, na ordem `postgres`/`rabbitmq` → `api`/`invoice-webhook` → `provider-simulator` → `worker`.
+- Fluxo completo: `POST /invoices` → `201`, e a nota ficou `APPROVED` cerca de 0,7s depois (300 ms do atraso incluídos), com `cnpj`, `amount`, `issueDate` e `approvedAt`. Logs na ordem: worker (`Solicitação aceita pelo provedor`), simulador (`Solicitação aceita, callback agendado` e `Callback entregue ao webhook`), webhook (`Resultado do provedor publicado`) e worker (`Nota aprovada`).
+- `messageId` derivado: o resultado `d4ea6820-…` confere com `UUID.nameUUIDFromBytes("result:b5b95485-…")` calculado no `jshell`.
+- Dedup: a mesma solicitação enviada duas vezes direto ao simulador deu dois `202`, um único callback e um único `messageId` novo em `processed_messages` (`Solicitação duplicada ignorada` no log).
+- `400` em `problem+json` para corpo ausente, JSON inválido, `messageId`, `payload.invoiceId` ou `payload.accessKey` ausentes, chave fora do formato e `messageId` que não é UUID, sempre só com o caminho do campo.
+- Reenvios com o webhook parado: esperas de 1s, 2s e 4s e `Reenvios do callback esgotados` cerca de 7s depois; a nota ficou `IN_ANALYSIS` (limitação esperada).
+- Reenvio em `5xx` com recuperação: simulador temporário com esperas de 5s, 10s e 20s e o RabbitMQ parado; dois `5xx` e entrega no 3º envio depois de o broker voltar. (Esse teste foi feito antes da correção, por isso o status era `500`.)
+- No fim, as quatro filas e DLQs com 0 mensagens, e nenhuma ocorrência de CNPJ, valor, segredo ou assinatura nos logs do `worker`, do webhook e do simulador.
+
+### O que falta verificar
+
+- O simulador não tem testes automatizados (decisão do autor). Os cenários C1, C3, H1 e H6 em nível I, com provedor de teste, são da fatia 7.
+- Reenvios do callback esgotados deixam a nota em `IN_ANALYSIS`, e a dedup impede que uma reentrega da solicitação gere o callback de novo.
+- A rejeição pelo fluxo completo não é exercitada no Compose: o simulador só gera resultados aprováveis (spec, seção 6).
+
+### Reorganização de pacotes do simulador depois da revisão do autor
+
+- **Pedido do autor:** o pacote `dev.matheus.provider` tinha 9 classes soltas.
+- **Decisões:** separação **por camada** (o autor escolheu entre "por assunto" e "por camada") e **só mover**, sem dividir o `WebhookCallbackSender` em duas classes (menos risco, já que o simulador não tem testes automatizados).
+- **Estrutura:** `config` (`SimulatorProperties`), `controller` (`EnrichmentRequestController`), `model` (`EnrichmentRequest`, `EnrichmentResult`) e `service` (`RequestDeduplicator`, `HmacSigner`, `WebhookCallbackSender`). A `ProviderSimulatorApplication` fica na raiz, e o `@ConfigurationPropertiesScan` continua achando a `SimulatorProperties` nos subpacotes.
+- **Visibilidade:** o que passou a cruzar pacotes virou `public` (os dois records e seus métodos usados fora, as três classes de `service` e seus métodos de entrada). O controller continua *package-private*.
+- **Verificação:** `./mvnw package` do simulador compila; no Compose, o simulador reconstruído manteve o fluxo (nota `APPROVED` com o CNPJ esperado) e o `400` para corpo inválido. Nenhum comportamento mudou.

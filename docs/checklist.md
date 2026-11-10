@@ -91,14 +91,14 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 ## Fatia 6C — Simulador do provedor e Compose
 
-- [ ] Projeto `provider-simulator/` com `pom.xml` e `Dockerfile` próprios, só HTTP (sem broker)
-- [ ] `POST /enrichment-requests`: valida o corpo, deduplica pelo `messageId` e responde `202` sem dados
-- [ ] Espera o atraso configurado e monta resultado completo e aprovável
-- [ ] `messageId` do resultado derivado do `messageId` da solicitação
-- [ ] Assina o corpo (HMAC-SHA256) e chama o webhook, com até 3 reenvios em `5xx` e timeout
-- [ ] Incluído no Docker Compose, junto com o `invoice-webhook` (seis serviços, healthchecks e dependências)
-- [ ] `.env.example` com `WEBHOOK_HMAC_SECRET`, `PROVIDER_BASE_URL` e `WEBHOOK_URL` de exemplo (sem segredos reais)
-- [ ] `docker compose up` completa o fluxo: nota criada e depois `APPROVED`
+- [x] Projeto `provider-simulator/` com `pom.xml` e `Dockerfile` próprios, só HTTP (sem broker)
+- [x] `POST /enrichment-requests`: valida o corpo, deduplica pelo `messageId` e responde `202` sem dados
+- [x] Espera o atraso configurado e monta resultado completo e aprovável
+- [x] `messageId` do resultado derivado do `messageId` da solicitação
+- [x] Assina o corpo (HMAC-SHA256) e chama o webhook, com até 3 reenvios em `5xx` e timeout
+- [x] Incluído no Docker Compose, junto com o `invoice-webhook` (seis serviços, healthchecks e dependências)
+- [x] `.env.example` com `WEBHOOK_HMAC_SECRET`, `PROVIDER_BASE_URL` e `WEBHOOK_URL` de exemplo (sem segredos reais)
+- [x] `docker compose up` completa o fluxo: nota criada e depois `APPROVED`
 
 ## Fatia 7 — Integração com o broker real
 

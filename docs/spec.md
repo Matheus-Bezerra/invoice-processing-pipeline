@@ -427,8 +427,9 @@ Parâmetros configuráveis, com os padrões:
 | Retries dos consumers (resultado e solicitação) | 3 (esperas de 2s, 4s e 8s; `RESULT_RETRY_*` e `REQUEST_RETRY_*`) |
 | Timeout de conexão e de resposta na chamada ao provedor | 2s e 5s (`PROVIDER_CONNECT_TIMEOUT`, `PROVIDER_READ_TIMEOUT`) |
 | URL base do provedor | `http://localhost:8083` (`PROVIDER_BASE_URL`) |
-| Atraso do simulador | 300 ms |
-| Reenvios do callback pelo simulador | 3 (esperas de 1s, 2s e 4s) |
+| Atraso do simulador | 300 ms (`SIMULATOR_DELAY`) |
+| Reenvios do callback pelo simulador | 3 (esperas de 1s, 2s e 4s; `SIMULATOR_CALLBACK_RETRY_WAITS`) |
+| Timeout de conexão e de resposta no callback do simulador | 2s e 5s (`SIMULATOR_CALLBACK_CONNECT_TIMEOUT`, `SIMULATOR_CALLBACK_READ_TIMEOUT`) |
 
 ## 9. Arquitetura do código
 
@@ -488,4 +489,5 @@ Integração com fornecedor fiscal real, consulta à SEFAZ, validação fiscal c
 - O segredo do HMAC é simétrico e compartilhado entre o provedor e o `invoice-webhook`. Não há rotação automática.
 - Se o callback nunca chegar (provedor com falha, ou reenvios esgotados), a nota fica em `IN_ANALYSIS` indefinidamente, sem timeout. O mesmo vale quando a solicitação cai na DLQ da solicitação.
 - O reprocessamento da DLQ da solicitação também é manual.
+- O simulador deduplica as solicitações em memória: o registro se perde quando ele reinicia e cresce sem limite (aceitável num simulador). Uma solicitação repetida sempre recebe `202` sem novo callback, mesmo que os reenvios do primeiro callback tenham se esgotado; nesse caso a nota fica em `IN_ANALYSIS`.
 - O webhook publica a mensagem antes de responder `202`. Se a resposta se perder, o provedor reenvia e a mensagem é publicada duas vezes, e o consumer a descarta.

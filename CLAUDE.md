@@ -111,7 +111,14 @@ docker compose up --build          # postgres, rabbitmq, api (8080), worker (808
 docker compose down                # derruba tudo
 ```
 
-Hoje o Compose sobe só `postgres`, `rabbitmq`, `api` e `worker` (o `worker` já consome a solicitação, mas `PROVIDER_BASE_URL` só ganha um provedor na fatia 6C). O perfil `webhook` já existe no código (6B), mas `invoice-webhook` e `provider-simulator` só entram no Compose na fatia 6C.
+O `.env` precisa de `WEBHOOK_HMAC_SECRET`, `PROVIDER_BASE_URL` e `WEBHOOK_URL` (veja o `.env.example`); sem o segredo o Compose não sobe. Quem já tinha um `.env` antigo deve acrescentar essas linhas.
+
+O simulador é um projeto Maven separado, com wrapper próprio:
+
+```bash
+cd provider-simulator && ./mvnw package                    # compila o simulador (não tem testes automatizados)
+WEBHOOK_HMAC_SECRET=segredo-local ./mvnw spring-boot:run   # simulador em :8083, chama o webhook em WEBHOOK_URL (padrão http://localhost:8082)
+```
 
 Rodar localmente fora do Compose (com `postgres` e `rabbitmq` do Compose no ar):
 
