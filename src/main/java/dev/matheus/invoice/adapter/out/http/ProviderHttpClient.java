@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -47,14 +48,16 @@ class ProviderHttpClient implements ProviderClient {
 
     @Override
     public void requestEnrichment(UUID correlationId, String requestJson) {
+        HttpStatusCode status;
         try {
-            restClient.post()
+            status = restClient.post()
                     .uri(PATH)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header(CORRELATION_HEADER, correlationId.toString())
                     .body(requestJson)
                     .retrieve()
-                    .toBodilessEntity();
+                    .toBodilessEntity()
+                    .getStatusCode();
         } catch (HttpClientErrorException e) {
             throw new ProviderRejectedException(e.getStatusCode().value());
         } catch (HttpServerErrorException e) {
@@ -65,6 +68,11 @@ class ProviderHttpClient implements ProviderClient {
                     "Resposta inesperada do provedor (status " + e.getStatusCode().value() + ")", e);
         } catch (RestClientException e) {
             throw new ProviderUnavailableException("Falha de comunicação com o provedor (timeout ou conexão recusada)", e);
+        }
+        // O RestClient só trata 4xx e 5xx como erro. Um 3xx (o redirecionamento não é seguido) chegaria aqui como se o
+        // provedor tivesse aceitado, e a solicitação receberia ack sem resultado algum.
+        if (!status.is2xxSuccessful()) {
+            throw new ProviderUnavailableException("Resposta inesperada do provedor (status " + status.value() + ")", null);
         }
     }
 }

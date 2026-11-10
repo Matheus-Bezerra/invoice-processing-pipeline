@@ -225,7 +225,7 @@ O `worker` consome `invoice.enrichment.request` e repassa a solicitação ao pro
 |---|---|---|
 | `202 Accepted`, sem dados | Solicitação aceita. O resultado virá depois, pelo webhook | `ack` |
 | `4xx` | Erro permanente (solicitação rejeitada pelo provedor) | DLQ direto, sem retry |
-| `5xx`, timeout ou conexão recusada | Erro técnico | Retry (ver 4.8) e depois DLQ |
+| `5xx`, `3xx`, timeout ou conexão recusada | Erro técnico. O redirecionamento não é seguido | Retry (ver 4.8) e depois DLQ |
 
 - O `202` **não** traz dados da nota. Os dados chegam só no callback (2.5).
 - A URL do callback **não** vai na solicitação: é configuração do próprio provedor. Assim a mensagem não consegue apontar o provedor para um destino arbitrário.
@@ -308,7 +308,7 @@ O consumer da solicitação roda no `worker` e **não acessa o banco**: ele só 
 | Mensagem malformada (JSON inválido, `messageId`, `invoiceId` ou `accessKey` ausentes) | não | DLQ da solicitação |
 | Provedor responde `202` | não | `ack` |
 | Provedor responde `4xx` | não | DLQ da solicitação, com log de warning |
-| Provedor responde `5xx`, timeout ou conexão recusada | sim | 3 retries com esperas de 2s, 4s e 8s (até 4 execuções) e depois DLQ da solicitação |
+| Provedor responde `5xx` ou `3xx`, timeout ou conexão recusada | sim | 3 retries com esperas de 2s, 4s e 8s (até 4 execuções) e depois DLQ da solicitação |
 
 - Mesma política de retry e `prefetch = 1` do consumer de resultado (4.5).
 - O `X-Correlation-Id` usa o `correlationId` da mensagem; se faltar, usa o `payload.invoiceId`. O `worker` não revalida o formato da chave (a api já validou): uma chave inválida publicada direto na fila é recusada pelo provedor com `4xx` e vai para a DLQ. Um UUID ilegível conta como malformada.

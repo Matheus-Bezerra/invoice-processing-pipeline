@@ -103,6 +103,16 @@ class ProviderHttpClientTest {
                 .isInstanceOf(ProviderUnavailableException.class);
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {301, 302, 307, 308})
+    void redirectIsTechnicalFailureAndIsNotFollowed(int code) {
+        status = code;
+
+        assertThatThrownBy(() -> client.requestEnrichment(CORRELATION_ID, BODY))
+                .isInstanceOf(ProviderUnavailableException.class)
+                .hasMessageContaining(String.valueOf(code));
+    }
+
     @Test
     void slowResponseIsTechnicalFailure() {
         delayMillis = 1_500;
