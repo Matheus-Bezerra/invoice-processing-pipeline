@@ -24,6 +24,7 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 - [x] **T5** (D; nível A na fatia 5): falta de `cnpj`, `amount` ou `issueDate` rejeita como incompleta (um teste por campo)
 - [x] **E1** (D): `cancelled` ausente rejeita como incompleta
 - [x] **E2** (D): CNPJ inválido ou `amount` negativo rejeita como dados inválidos
+- [x] **E2** (D, P), achado da revisão de segurança: `cnpj` com mais de 14 caracteres ou `amount` acima do limite rejeita a nota, em vez de falhar o `UPDATE` e mandar para a DLQ
 - [x] **E10** (D): cancelada e incompleta ao mesmo tempo gera o motivo de cancelamento
 - [x] Nota finalizada não muda com um novo resultado
 
@@ -118,7 +119,8 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 Só verificação: nenhuma funcionalidade nova. Os prompts dos agentes serão definidos junto com o autor quando a fatia começar.
 
-- [ ] Agente de revisão de segurança (por exemplo, segredos, entradas, SQL, logs com dados sensíveis, imagens e Compose, e o webhook: HMAC em tempo constante, segredo fora dos logs, replay e SSRF)
+- [x] Agente de revisão de segurança (por exemplo, segredos, entradas, SQL, logs com dados sensíveis, imagens e Compose, e o webhook: HMAC em tempo constante, segredo fora dos logs, replay e SSRF)
+  - [x] Achado: corpo do webhook sem limite antes do HMAC (DoS por memória). Corrigido com leitura limitada e `413` (**H9**)
 - [ ] Agente de revisão de boas práticas de código (arquitetura hexagonal, convenções do `CLAUDE.md`, código sem uso)
 - [ ] Revisão de aderência à spec (contratos, regras e cenários T1–T10 e E1–E10 cobertos)
 - [ ] Achados triados: corrigidos ou registrados como limitação

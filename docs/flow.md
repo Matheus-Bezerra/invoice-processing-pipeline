@@ -100,7 +100,7 @@ O request do cliente nunca espera o provedor, e a nota nunca é aprovada durante
 | Chamada | Quem chama | Corpo | Resposta |
 |---|---|---|---|
 | `POST {PROVIDER_BASE_URL}/enrichment-requests` | `worker` | `EnrichmentRequest` | `202` sem dados. `4xx` é erro permanente, `5xx` e timeout são erro técnico |
-| `POST /webhooks/enrichment-results` | `provider-simulator` | `EnrichmentResult`, com `X-Signature: sha256=<hex>` | `202` publicado, `401` assinatura inválida, `400` payload malformado, `503` falha ao publicar |
+| `POST /webhooks/enrichment-results` | `provider-simulator` | `EnrichmentResult`, com `X-Signature: sha256=<hex>` | `202` publicado, `413` corpo acima do limite, `401` assinatura inválida, `400` payload malformado, `503` falha ao publicar |
 
 Os dados da nota (cnpj, valor, data, cancelamento) trafegam **só** no callback. A URL do callback é configuração do provedor e não vai na solicitação.
 
@@ -154,7 +154,7 @@ flowchart TD
     I -- "sim" --> R1["REJECTED: nota cancelada pelo emitente"]
     I -- "não" --> J{"cnpj, amount, issueDate e cancelled presentes?"}
     J -- "não" --> R2["REJECTED: incompleta, lista os campos ausentes"]
-    J -- "sim" --> K{"CNPJ válido (14 caracteres, dígitos verificadores) e amount não negativo?"}
+    J -- "sim" --> K{"CNPJ válido (14 caracteres, dígitos verificadores) e amount entre 0 e o limite (13 dígitos inteiros, 2 decimais)?"}
     K -- "não" --> R3["REJECTED: dados inválidos"]
     K -- "sim" --> AP["APPROVED: grava os dados e approvedAt"]
     R1 --> CM["COMMIT e ack"]
@@ -176,7 +176,9 @@ Uma nota rejeitada mantém `approvedAt` vazio e grava um `rejectionReason` legí
 
 ```mermaid
 flowchart TD
-    A["POST /webhooks/enrichment-results recebido"] --> B{"X-Signature presente e igual ao HMAC-SHA256 do corpo bruto?"}
+    A["POST /webhooks/enrichment-results recebido"] --> S{"Corpo até 64 KB? (lê no máximo limite + 1 bytes)"}
+    S -- "não" --> R413["413 Content Too Large, nada é publicado"]
+    S -- "sim" --> B{"X-Signature presente e igual ao HMAC-SHA256 do corpo bruto?"}
     B -- "não" --> R401["401 Unauthorized, nada é publicado"]
     B -- "sim" --> C{"JSON válido, com messageId e payload.accessKey (44 dígitos), e campos legíveis?"}
     C -- "não" --> R400["400 Bad Request, nada é publicado"]
@@ -186,7 +188,7 @@ flowchart TD
     E -- "não (nack, timeout ou devolvida)" --> R503["503 Service Unavailable, o provedor reenvia"]
 ```
 
-O webhook valida só a assinatura e o formato. Cancelamento, CNPJ e valor são decididos pelo consumer de resultado (diagrama acima). Chave inexistente também só aparece lá, porque o webhook não acessa o banco.
+O webhook valida só o tamanho, a assinatura e o formato. Cancelamento, CNPJ e valor são decididos pelo consumer de resultado (diagrama acima). Chave inexistente também só aparece lá, porque o webhook não acessa o banco.
 
 ### 4.2 Decisão do consumer de solicitação
 
@@ -299,7 +301,7 @@ Uma linha do outbox só existe enquanto a solicitação está pendente: ela é a
 - Criação duplicada (mesma chave de acesso): `200` com a nota existente. A garantia vem da constraint `UNIQUE`, e não de um `SELECT` prévio.
 - Chave de acesso: passa por `trim` e precisa ter exatamente 44 dígitos. Fora disso, `400`.
 - Idempotência dos resultados: `processed_messages` gravada na mesma transação do update, mais a guarda de estado final.
-- Validação do resultado: CNPJ válido e valor não negativo. O CNPJ pode ser alfanumérico (14 caracteres, sem máscara, 12 primeiros em `A-Z` ou dígitos e 2 dígitos verificadores). Se falhar, a nota é rejeitada.
+- Validação do resultado: CNPJ válido e valor não negativo e dentro do limite da coluna (13 dígitos inteiros, 2 decimais). O CNPJ pode ser alfanumérico (14 caracteres, sem máscara, 12 primeiros em `A-Z` ou dígitos e 2 dígitos verificadores). Se falhar, a nota é rejeitada.
 
 ## 9. Limitações conhecidas
 

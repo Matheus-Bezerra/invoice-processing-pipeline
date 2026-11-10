@@ -42,7 +42,7 @@ Pacote base: `dev.matheus.invoice`.
 
 ```text
 dev.matheus.invoice/
-├── domain/            Invoice, InvoiceStatus, AccessKey, Cnpj, exceções de negócio
+├── domain/            Invoice, InvoiceStatus, AccessKey, Cnpj (só validador), exceções de negócio
 ├── application/
 │   ├── service/       um subpacote por assunto: invoice/ (criação e consulta de notas),
 │   │                  outbox/ (relay), result/ (processamento do resultado) e
@@ -66,7 +66,7 @@ Regra de dependência: `adapter/in → application → domain`. `adapter/out →
 ### O que usar da skill
 
 - Camadas, ports de saída e adapters.
-- Comportamento dentro de `Invoice` (`approve`, `reject`), com mutação de estado só por esses métodos. Value objects `AccessKey` e `Cnpj`.
+- Comportamento dentro de `Invoice` (`approve`, `reject`), com mutação de estado só por esses métodos. Value object `AccessKey` e validador `Cnpj` (a nota guarda o CNPJ como `String`, pois rejeições gravam o valor inválido).
 - `Invoice` separada da entidade JPA, com **mapper manual**.
 - Controller pequeno que implementa uma interface `InvoiceApi` em `adapter/in/web/api`, onde ficam as anotações Swagger/OpenAPI. Swagger UI ativa na `api` para testar à mão.
 - Flyway para migrações. Testcontainers para PostgreSQL e RabbitMQ.
@@ -89,13 +89,13 @@ Para `outbox` e `processed_messages` **não** crie modelo de domínio: use adapt
 - **A API nunca chama o provedor.** Só publica na fila. O request não espera o enriquecimento e nunca aprova a nota. Quem chama o provedor por HTTP é o consumer da solicitação, no `worker`, de forma assíncrona.
 - **Criação:** `201` para chave nova, `200` com a nota existente para chave repetida. A garantia vem do `UNIQUE`, usando `INSERT ... ON CONFLICT DO NOTHING` e releitura. Chave com `trim` e exatamente 44 dígitos, senão `400`.
 - **Resultado:** a nota é localizada por `accessKey`. O resultado nunca cria nota.
-- **Decisão (ordem):** `cancelled = true` → rejeita; falta `cnpj`, `amount`, `issueDate` ou `cancelled` → rejeita como incompleta; CNPJ inválido ou `amount` negativo → rejeita como dados inválidos; senão aprova. `cancelled` é lido como `Boolean`, **nunca** `boolean`.
+- **Decisão (ordem):** `cancelled = true` → rejeita; falta `cnpj`, `amount`, `issueDate` ou `cancelled` → rejeita como incompleta; CNPJ inválido, `amount` negativo ou acima de 13 dígitos inteiros + 2 decimais (limite da coluna) → rejeita como dados inválidos; senão aprova. `cancelled` é lido como `Boolean`, **nunca** `boolean`.
 - **CNPJ:** alfanumérico aceito, 14 caracteres, sem máscara, maiúsculas, dígitos verificadores conforme documentação oficial da Receita.
 - **Idempotência:** `processed_messages(message_id)` gravada na **mesma transação** do update, mais guarda de estado final (`UPDATE ... WHERE status = 'IN_ANALYSIS'`). Trava a linha da nota com `FOR UPDATE`.
 - **Destino das mensagens:** malformada e chave inexistente → DLQ direto; duplicata e nota finalizada → `ack` com log; erro técnico → 3 retries (2s, 4s, 8s) dentro do worker e depois DLQ. `prefetch = 1`.
 - **`messageId` do resultado** é derivado do `messageId` da solicitação (`UUID.nameUUIDFromBytes`), no simulador.
 - **Provedor via HTTP, não via fila:** o `worker` consome `invoice.enrichment.request` e faz `POST {PROVIDER_BASE_URL}/enrichment-requests` (resposta `202` sem dados). Os dados da nota chegam **só** no callback. `4xx` e malformada → DLQ da solicitação (`invoice.enrichment.request.dlq`) direto; `5xx` e timeout → 3 retries (2s, 4s, 8s) e DLQ. A URL do callback é configuração do provedor e nunca vai na mensagem.
-- **Webhook** (`invoice-webhook`, perfil `webhook`): `POST /webhooks/enrichment-results`, corpo = envelope `EnrichmentResult`, cabeçalho `X-Signature: sha256=<hex>` (HMAC-SHA256 do corpo bruto, comparação em tempo constante, segredo `WEBHOOK_HMAC_SECRET`). Ordem: assinatura (`401`), payload (`400`), publicação com *publisher confirm* (`202`, ou `503` se falhar). Não acessa banco e não valida regra de negócio. Tem Swagger próprio. Nunca loga o segredo nem a assinatura.
+- **Webhook** (`invoice-webhook`, perfil `webhook`): `POST /webhooks/enrichment-results`, corpo = envelope `EnrichmentResult`, cabeçalho `X-Signature: sha256=<hex>` (HMAC-SHA256 do corpo bruto, comparação em tempo constante, segredo `WEBHOOK_HMAC_SECRET`). Ordem: tamanho do corpo (`413` acima de 64 KB, lido com teto), assinatura (`401`), payload (`400`), publicação com *publisher confirm* (`202`, ou `503` se falhar). Não acessa banco e não valida regra de negócio. Tem Swagger próprio. Nunca loga o segredo nem a assinatura.
 - **Simulador** (`provider-simulator/`, projeto separado, só HTTP, sem broker): recebe a chamada, responde `202`, espera, assina o resultado completo e aprovável e chama o webhook (até 3 reenvios em `5xx`). Rejeições são cobertas só nos testes automatizados.
 - `api`, `worker` e `invoice-webhook` são o mesmo código e a mesma imagem, com perfis `api`, `worker` e `webhook` do Spring. O perfil `webhook` não usa banco (sem DataSource, JPA nem Flyway).
 

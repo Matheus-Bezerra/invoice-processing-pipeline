@@ -43,6 +43,7 @@ A chave passa por `trim` e precisa ter **exatamente 44 dígitos** (`^[0-9]{44}$`
 | Chave já cadastrada | `200 OK`, a nota existente no estado em que estiver |
 | Chave ausente, vazia ou fora do formato | `400 Bad Request` |
 | JSON malformado | `400 Bad Request` |
+| Corpo acima de 8 KB (`invoice.api.max-body-bytes`), com ou sem `Content-Length` | `413 Content Too Large`, conferido antes de desserializar o JSON |
 
 Garantias:
 
@@ -108,17 +109,19 @@ Cabeçalhos:
 
 Corpo: o envelope `EnrichmentResult` de 3.2, sem alterações. O `messageId` já vem derivado do `messageId` da solicitação (ver 3.2), então reenvios do mesmo callback mantêm o mesmo `messageId`.
 
-Ordem de verificação: assinatura, depois payload, depois publicação.
+Ordem de verificação: tamanho do corpo, assinatura, payload e publicação.
 
 | Situação | Resposta |
 |---|---|
 | Resultado válido, publicado e confirmado pelo broker | `202 Accepted`, sem corpo |
+| Corpo acima de 64 KB (`invoice.webhook.max-body-bytes`), com ou sem `Content-Length` | `413 Content Too Large`, nada é publicado |
 | `X-Signature` ausente, mal formada ou que não confere com o corpo | `401 Unauthorized`, nada é publicado |
 | JSON malformado, `messageId` ou `payload.accessKey` ausentes, ou campo com tipo ou formato ilegível (mesmas regras de 3.2) | `400 Bad Request`, nada é publicado |
 | Broker indisponível, `nack`, timeout ou mensagem devolvida (*publisher confirm*) | `503 Service Unavailable`. O provedor deve reenviar |
 
 Garantias:
 
+- O corpo é lido com teto de tamanho (no máximo limite + 1 bytes) antes da assinatura. Um corpo enorme nunca é carregado inteiro na memória. O envelope real tem menos de 1 KB.
 - A assinatura é comparada em tempo constante e sobre os bytes exatos recebidos, antes de qualquer parse do JSON.
 - A `payload.accessKey` também é conferida no formato (44 dígitos), a mesma regra do consumer de resultado: chave fora do formato recebe `400` já no webhook.
 - O webhook **não valida regra de negócio** (CNPJ, valor, cancelamento): só o formato da mensagem. A decisão de aprovar ou rejeitar continua no consumer do resultado.
@@ -247,10 +250,12 @@ A nota está em `IN_ANALYSIS` e segue esta ordem. A primeira regra que se aplica
 
 1. `cancelled = true` → `REJECTED`, motivo de cancelamento.
 2. Falta `cnpj`, `amount`, `issueDate` ou `cancelled` → `REJECTED`, motivo de incompleto.
-3. CNPJ inválido ou `amount` negativo → `REJECTED`, motivo de dados inválidos.
+3. CNPJ inválido, `amount` negativo ou `amount` acima do limite (13 dígitos inteiros e 2 decimais, o da coluna `NUMERIC(15,2)`, já arredondado para 2 casas) → `REJECTED`, motivo de dados inválidos.
 4. Caso contrário → `APPROVED`, grava os dados e `approvedAt`.
 
 Em toda rejeição `approvedAt` fica vazio. Um valor `0` é aceito.
+
+Na rejeição, os dados recebidos são gravados, **exceto** o que não cabe no armazenamento: um `cnpj` com mais de 14 caracteres ou um `amount` acima do limite ficam nulos (o motivo já diz qual campo estava inválido). Gravar o valor faria o `UPDATE` falhar e a nota nunca seria rejeitada.
 
 ### 4.3 Validação do CNPJ
 
@@ -264,7 +269,7 @@ Texto legível gravado em `rejection_reason`. Os nomes dos campos aparecem como 
 |---|---|
 | Cancelada | `Nota cancelada pelo emitente` |
 | Incompleta | `Enriquecimento incompleto: campos ausentes: cnpj, amount` |
-| Inválida | `Dados de enriquecimento inválidos: cnpj inválido, amount negativo` |
+| Inválida | `Dados de enriquecimento inválidos: cnpj inválido, amount negativo` (ou `amount acima do limite`, no lugar de `amount negativo`) |
 
 ### 4.5 Destino das mensagens de resultado
 
@@ -327,7 +332,7 @@ Horários em `timestamptz`.
 
 Projeto separado em `provider-simulator/`, com `pom.xml` e `Dockerfile` próprios. Ele representa o provedor externo e **não usa o broker**: só fala HTTP.
 
-1. Expõe `POST /enrichment-requests` (3.4). Valida o corpo, deduplica pelo `messageId` da solicitação e responde `202 Accepted` sem dados. Corpo inválido recebe `400`.
+1. Expõe `POST /enrichment-requests` (3.4). Valida o corpo, deduplica pelo `messageId` da solicitação e responde `202 Accepted` sem dados. Corpo inválido recebe `400`. Corpo acima de 8 KB (`simulator.max-body-bytes`) recebe `413`, como na `api`.
 2. Depois da resposta, espera um pequeno atraso (padrão 300 ms, configurável).
 3. Monta o envelope `EnrichmentResult` (3.2) com `messageId = UUID.nameUUIDFromBytes("result:" + requestMessageId)`, o `correlationId` copiado da solicitação e um resultado **completo e aprovável**:
 
@@ -362,7 +367,7 @@ Níveis: **D** domínio (JUnit puro), **A** serviço de aplicação (Mockito), *
 | T9 | Falha na publicação preserva a nota, e o relay publica a solicitação pendente depois | A, I |
 | T10 | Chave com formato inválido recebe `400` | W |
 | E1 | `cancelled` ausente rejeita a nota como incompleta | D |
-| E2 | CNPJ inválido ou `amount` negativo rejeita a nota como dados inválidos | D |
+| E2 | CNPJ inválido, `amount` negativo ou `amount` acima do limite rejeita a nota como dados inválidos, inclusive quando o valor recebido não cabe na coluna (`cnpj` com mais de 14 caracteres, `amount` com mais de 13 dígitos inteiros): a nota é rejeitada e não vai para a DLQ | D, P |
 | E3 | Resultado com `messageId` diferente para nota finalizada não altera nada | A |
 | E4 | Mensagem malformada vai direto para a DLQ | I |
 | E5 | Erro técnico no processamento faz 3 retries e depois vai para a DLQ | A, I |
@@ -383,6 +388,7 @@ Níveis: **D** domínio (JUnit puro), **A** serviço de aplicação (Mockito), *
 | H6 | O mesmo callback enviado duas vezes publica duas mensagens com o mesmo `messageId`, e a nota é atualizada uma única vez | I |
 | H7 | A Swagger UI do `invoice-webhook` está disponível e documenta o endpoint em português | W |
 | H8 | O perfil `webhook` sobe sem datasource, sem JPA e sem Flyway | W |
+| H9 | Callback com corpo acima do limite responde `413` antes da verificação da assinatura e não publica, inclusive em *chunked* (sem `Content-Length`) | W |
 
 Formato dos cenários, com um exemplo:
 
@@ -411,7 +417,7 @@ Usa Testcontainers (RabbitMQ e PostgreSQL) e cobre publicação, consumo e reent
 - Health check com Spring Actuator.
 - Configuração por `application.yml` e variáveis de ambiente. Valores de exemplo em `.env.example`, sem credenciais reais versionadas.
 - Docker Compose sobe `postgres`, `rabbitmq`, `api`, `worker`, `invoice-webhook` e `provider-simulator`, com *healthchecks* e dependências entre eles. `api`, `worker` e `invoice-webhook` usam a mesma imagem, com perfis diferentes.
-- Portas: `api` 8080, `worker` 8081, `invoice-webhook` 8082 e `provider-simulator` 8083. O Swagger do webhook fica em `localhost:8082/swagger-ui.html`.
+- Portas: `api` 8080, `worker` 8081, `invoice-webhook` 8082 e `provider-simulator` 8083. O Swagger do webhook fica em `localhost:8082/swagger-ui.html`. Todas as portas são publicadas só em `127.0.0.1` (acessíveis só da própria máquina): os serviços conversam entre si pela rede interna do Compose, e assim o broker e o banco, com a senha do `.env.example`, não ficam expostos à rede local.
 - O segredo do webhook (`WEBHOOK_HMAC_SECRET`) vem do `.env`, com valor de exemplo apenas local no `.env.example`. Ele não tem valor padrão na aplicação: sem a variável, o perfil `webhook` não sobe. O `worker` conhece `PROVIDER_BASE_URL`, e o simulador conhece `WEBHOOK_URL`.
 
 Parâmetros configuráveis, com os padrões:
