@@ -540,3 +540,9 @@ Chamar a função de processamento duas vezes não prova reentrega: ela precisa 
 - **Teste novo:** `BodySizeLimitFilterTest` (6 casos). Foi escrito e passou **antes** da refatoração, contra o filtro antigo, para fixar o comportamento. A `api` não tinha teste automatizado desse `413` (só verificação manual com `curl`, fatia 8).
 - **Não mexi** no `BodySizeLimitFilter` do `provider-simulator`: é outro projeto, e uma terceira cópia fica fora do escopo.
 - **Verificação:** `./mvnw verify` com 240 testes, 0 falhas (234 + os 6 do filtro). No Compose real: `413` com `Content-Length` de 200 KB e em *chunked*, na `api` e no webhook (com o `problem+json` em português); corpo pequeno sem assinatura dá `401`; `POST` válido na `api` dá `201`; e o fluxo completo com o simulador chegou a `APPROVED`, o que exercita o webhook recebendo `byte[]` com a assinatura correta.
+
+### Logo (pedido do autor)
+
+- **O que a IA gerou:** a primeira versão (nota fiscal com selo de aprovada, gradiente e nome em duas cores) foi recusada pelo autor por parecer genérica, "cara de IA". Depois a IA desenhou três opções em cores chapadas, sem gradiente e com o nome numa cor só: um monograma F com seta, um carimbo fiscal e barras de estágios.
+- **Escolha do autor:** o monograma, um F num bloco sólido cuja barra de cima vira uma seta (o fluxo). São duas versões: `docs/images/logo.svg` (bloco azul-marinho e F verde-azulado, para o tema claro) e `docs/images/logo-dark.svg` (cores invertidas e nome claro, para o tema escuro). O README troca as duas com `<picture>` e `prefers-color-scheme`, que o GitHub respeita. A logo substitui o título `# FiscalFlow`.
+- **Verificado:** as duas versões renderizadas no Chrome headless, sobre fundo branco e sobre o fundo escuro do GitHub (`#0d1117`).
