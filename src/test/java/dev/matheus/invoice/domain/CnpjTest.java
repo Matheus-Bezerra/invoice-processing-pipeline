@@ -1,10 +1,7 @@
 package dev.matheus.invoice.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import dev.matheus.invoice.domain.exception.InvalidCnpjException;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -19,7 +16,6 @@ class CnpjTest {
     })
     void acceptsValidCnpj(String raw) {
         assertThat(Cnpj.isValid(raw)).isTrue();
-        assertThat(Cnpj.of(raw).value()).isEqualTo(raw);
     }
 
     @ParameterizedTest
@@ -38,12 +34,5 @@ class CnpjTest {
     })
     void rejectsInvalidCnpj(String raw) {
         assertThat(Cnpj.isValid(raw)).isFalse();
-        assertThatThrownBy(() -> Cnpj.of(raw)).isInstanceOf(InvalidCnpjException.class);
-    }
-
-    @Test
-    void errorMessageIsInPortuguese() {
-        assertThatThrownBy(() -> Cnpj.of("123"))
-                .hasMessage("CNPJ inválido");
     }
 }

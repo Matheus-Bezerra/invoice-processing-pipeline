@@ -1,27 +1,21 @@
 package dev.matheus.invoice.domain;
 
-import dev.matheus.invoice.domain.exception.InvalidCnpjException;
-
 import java.util.regex.Pattern;
 
 /**
  * CNPJ alfanumérico: 12 caracteres [A-Z0-9] + 2 dígitos verificadores numéricos, sem máscara.
  * Dígitos verificadores por módulo 11, com valor de cada caractere = código ASCII - 48
  * (pesos 2 a 9 da direita para a esquerda), conforme a Receita Federal.
+ *
+ * <p>Só valida. A {@link Invoice} guarda o CNPJ como {@code String} porque uma nota rejeitada por CNPJ inválido
+ * também grava o valor recebido, então um objeto que não aceita valor inválido não serve para guardá-lo.
  */
-public record Cnpj(String value) {
+public final class Cnpj {
 
     private static final Pattern FORMAT = Pattern.compile("^[A-Z0-9]{12}[0-9]{2}$");
     private static final int[] WEIGHTS = {6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
 
-    public Cnpj {
-        if (!isValid(value)) {
-            throw new InvalidCnpjException();
-        }
-    }
-
-    public static Cnpj of(String raw) {
-        return new Cnpj(raw);
+    private Cnpj() {
     }
 
     public static boolean isValid(String raw) {
