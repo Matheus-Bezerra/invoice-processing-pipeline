@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -19,8 +19,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -38,7 +38,7 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       SPRING_PROFILES_ACTIVE: api
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,7 +58,7 @@ services:
       SPRING_PROFILES_ACTIVE: worker
       PROVIDER_BASE_URL: ${PROVIDER_BASE_URL}
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     # Espera a api para não disputar a execução das migrações Flyway na subida, e o provedor para não mandar
     # as primeiras solicitações para a DLQ.
     depends_on:
@@ -83,7 +83,7 @@ services:
       WEBHOOK_HMAC_SECRET: ${WEBHOOK_HMAC_SECRET:?defina WEBHOOK_HMAC_SECRET no .env (veja o .env.example)}
       SPRING_PROFILES_ACTIVE: webhook
     ports:
-      - "8082:8082"
+      - "127.0.0.1:8082:8082"
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -101,7 +101,7 @@ services:
       WEBHOOK_URL: ${WEBHOOK_URL}
       WEBHOOK_HMAC_SECRET: ${WEBHOOK_HMAC_SECRET:?defina WEBHOOK_HMAC_SECRET no .env (veja o .env.example)}
     ports:
-      - "8083:8083"
+      - "127.0.0.1:8083:8083"
     depends_on:
       invoice-webhook:
         condition: service_healthy
