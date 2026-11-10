@@ -13,9 +13,9 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import dev.matheus.invoice.application.message.EnrichmentRequestMessage;
-import dev.matheus.invoice.application.port.out.ClockPort;
-import dev.matheus.invoice.application.port.out.InvoiceRepository;
-import dev.matheus.invoice.application.port.out.OutboxPort;
+import dev.matheus.invoice.application.port.out.clock.ClockPort;
+import dev.matheus.invoice.application.port.out.persistence.invoice.InvoiceRepository;
+import dev.matheus.invoice.application.port.out.persistence.outbox.OutboxPort;
 import dev.matheus.invoice.domain.AccessKey;
 import dev.matheus.invoice.domain.Invoice;
 import dev.matheus.invoice.domain.exception.InvoiceNotFoundException;

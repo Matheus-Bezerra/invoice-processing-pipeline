@@ -6,9 +6,9 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.matheus.invoice.application.port.out.ClockPort;
-import dev.matheus.invoice.application.port.out.InvoiceRepository;
-import dev.matheus.invoice.application.port.out.ProcessedMessageStore;
+import dev.matheus.invoice.application.port.out.clock.ClockPort;
+import dev.matheus.invoice.application.port.out.persistence.invoice.InvoiceRepository;
+import dev.matheus.invoice.application.port.out.persistence.processedmessage.ProcessedMessageStore;
 import dev.matheus.invoice.domain.Invoice;
 import dev.matheus.invoice.domain.ProcessingOutcome;
 import lombok.RequiredArgsConstructor;

@@ -31,7 +31,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-import dev.matheus.invoice.application.port.out.ResultPublishFailedException;
+import dev.matheus.invoice.application.port.out.messaging.ResultPublishFailedException;
 import dev.matheus.invoice.application.service.provider.EnrichmentResultPublishingService;
 import dev.matheus.invoice.application.service.provider.PublishEnrichmentResultCommand;
 

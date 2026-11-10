@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.port.out;
+package dev.matheus.invoice.application.port.out.persistence.processedmessage;
 
 import java.time.Instant;
 import java.util.UUID;

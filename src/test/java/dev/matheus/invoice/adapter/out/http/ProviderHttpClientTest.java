@@ -19,8 +19,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import com.sun.net.httpserver.HttpServer;
 
-import dev.matheus.invoice.application.port.out.ProviderRejectedException;
-import dev.matheus.invoice.application.port.out.ProviderUnavailableException;
+import dev.matheus.invoice.application.port.out.provider.ProviderRejectedException;
+import dev.matheus.invoice.application.port.out.provider.ProviderUnavailableException;
 
 /** Client HTTP contra um provedor fake (servidor HTTP do JDK). */
 class ProviderHttpClientTest {

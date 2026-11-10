@@ -26,10 +26,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import dev.matheus.invoice.application.port.out.ClockPort;
-import dev.matheus.invoice.application.port.out.EnrichmentRequestPublisher;
-import dev.matheus.invoice.application.port.out.OutboxPort;
-import dev.matheus.invoice.application.port.out.PendingRequest;
+import dev.matheus.invoice.application.port.out.clock.ClockPort;
+import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.persistence.outbox.OutboxPort;
+import dev.matheus.invoice.application.port.out.persistence.outbox.PendingRequest;
 
 @ExtendWith(MockitoExtension.class)
 class OutboxPublisherServiceTest {

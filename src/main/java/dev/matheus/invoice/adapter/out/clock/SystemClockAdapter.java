@@ -5,7 +5,7 @@ import java.time.temporal.ChronoUnit;
 
 import org.springframework.stereotype.Component;
 
-import dev.matheus.invoice.application.port.out.ClockPort;
+import dev.matheus.invoice.application.port.out.clock.ClockPort;
 
 @Component
 public class SystemClockAdapter implements ClockPort {

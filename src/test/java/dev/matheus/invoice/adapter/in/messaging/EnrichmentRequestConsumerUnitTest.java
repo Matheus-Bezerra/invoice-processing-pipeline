@@ -18,8 +18,8 @@ import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 
-import dev.matheus.invoice.application.port.out.ProviderRejectedException;
-import dev.matheus.invoice.application.port.out.ProviderUnavailableException;
+import dev.matheus.invoice.application.port.out.provider.ProviderRejectedException;
+import dev.matheus.invoice.application.port.out.provider.ProviderUnavailableException;
 import dev.matheus.invoice.application.service.provider.EnrichmentRequestForwardingService;
 import dev.matheus.invoice.application.service.provider.ForwardEnrichmentRequestCommand;
 import tools.jackson.databind.json.JsonMapper;

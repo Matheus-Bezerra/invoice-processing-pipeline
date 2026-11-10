@@ -9,10 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.matheus.invoice.application.port.out.ClockPort;
-import dev.matheus.invoice.application.port.out.EnrichmentRequestPublisher;
-import dev.matheus.invoice.application.port.out.OutboxPort;
-import dev.matheus.invoice.application.port.out.PendingRequest;
+import dev.matheus.invoice.application.port.out.clock.ClockPort;
+import dev.matheus.invoice.application.port.out.messaging.EnrichmentRequestPublisher;
+import dev.matheus.invoice.application.port.out.persistence.outbox.OutboxPort;
+import dev.matheus.invoice.application.port.out.persistence.outbox.PendingRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

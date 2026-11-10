@@ -13,9 +13,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import dev.matheus.invoice.application.port.out.ProviderClient;
-import dev.matheus.invoice.application.port.out.ProviderRejectedException;
-import dev.matheus.invoice.application.port.out.ProviderUnavailableException;
+import dev.matheus.invoice.application.port.out.provider.ProviderClient;
+import dev.matheus.invoice.application.port.out.provider.ProviderRejectedException;
+import dev.matheus.invoice.application.port.out.provider.ProviderUnavailableException;
 
 /** Nível A: repasse da solicitação ao provedor (C1, C2 e C3 no serviço). */
 @ExtendWith(MockitoExtension.class)

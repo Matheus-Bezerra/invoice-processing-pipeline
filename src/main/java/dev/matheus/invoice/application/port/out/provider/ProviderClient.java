@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.port.out;
+package dev.matheus.invoice.application.port.out.provider;
 
 import java.util.UUID;
 

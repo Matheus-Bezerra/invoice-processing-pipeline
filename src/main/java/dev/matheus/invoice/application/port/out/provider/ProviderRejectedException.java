@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.port.out;
+package dev.matheus.invoice.application.port.out.provider;
 
 /** O provedor respondeu {@code 4xx}: tentar de novo não resolveria. */
 public class ProviderRejectedException extends RuntimeException {

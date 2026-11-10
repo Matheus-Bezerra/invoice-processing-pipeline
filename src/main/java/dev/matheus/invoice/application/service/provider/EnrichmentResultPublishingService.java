@@ -3,8 +3,8 @@ package dev.matheus.invoice.application.service.provider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-import dev.matheus.invoice.application.port.out.EnrichmentResultPublisher;
-import dev.matheus.invoice.application.port.out.ResultPublishFailedException;
+import dev.matheus.invoice.application.port.out.messaging.EnrichmentResultPublisher;
+import dev.matheus.invoice.application.port.out.messaging.ResultPublishFailedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

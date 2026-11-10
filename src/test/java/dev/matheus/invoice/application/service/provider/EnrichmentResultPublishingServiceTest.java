@@ -13,8 +13,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import dev.matheus.invoice.application.port.out.EnrichmentResultPublisher;
-import dev.matheus.invoice.application.port.out.ResultPublishFailedException;
+import dev.matheus.invoice.application.port.out.messaging.EnrichmentResultPublisher;
+import dev.matheus.invoice.application.port.out.messaging.ResultPublishFailedException;
 
 /** Nível A: publicação do resultado recebido pelo webhook (H5 no serviço). */
 @ExtendWith(MockitoExtension.class)

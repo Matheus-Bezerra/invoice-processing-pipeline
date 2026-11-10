@@ -22,9 +22,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessResourceFailureException;
 
-import dev.matheus.invoice.application.port.out.ClockPort;
-import dev.matheus.invoice.application.port.out.InvoiceRepository;
-import dev.matheus.invoice.application.port.out.ProcessedMessageStore;
+import dev.matheus.invoice.application.port.out.clock.ClockPort;
+import dev.matheus.invoice.application.port.out.persistence.invoice.InvoiceRepository;
+import dev.matheus.invoice.application.port.out.persistence.processedmessage.ProcessedMessageStore;
 import dev.matheus.invoice.domain.AccessKey;
 import dev.matheus.invoice.domain.EnrichmentData;
 import dev.matheus.invoice.domain.Invoice;

@@ -3,7 +3,7 @@ package dev.matheus.invoice.application.service.provider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-import dev.matheus.invoice.application.port.out.ProviderClient;
+import dev.matheus.invoice.application.port.out.provider.ProviderClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

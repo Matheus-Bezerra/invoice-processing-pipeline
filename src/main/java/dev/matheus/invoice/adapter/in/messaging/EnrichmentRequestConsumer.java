@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import dev.matheus.invoice.application.message.EnrichmentRequestMessage;
-import dev.matheus.invoice.application.port.out.ProviderRejectedException;
+import dev.matheus.invoice.application.port.out.provider.ProviderRejectedException;
 import dev.matheus.invoice.application.service.provider.EnrichmentRequestForwardingService;
 import dev.matheus.invoice.application.service.provider.ForwardEnrichmentRequestCommand;
 import lombok.RequiredArgsConstructor;

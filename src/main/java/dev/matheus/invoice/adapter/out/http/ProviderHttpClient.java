@@ -15,9 +15,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
-import dev.matheus.invoice.application.port.out.ProviderClient;
-import dev.matheus.invoice.application.port.out.ProviderRejectedException;
-import dev.matheus.invoice.application.port.out.ProviderUnavailableException;
+import dev.matheus.invoice.application.port.out.provider.ProviderClient;
+import dev.matheus.invoice.application.port.out.provider.ProviderRejectedException;
+import dev.matheus.invoice.application.port.out.provider.ProviderUnavailableException;
 
 /**
  * Chama {@code POST /enrichment-requests} no provedor (spec, seção 3.4). {@code 4xx} é recusa permanente; {@code 5xx},

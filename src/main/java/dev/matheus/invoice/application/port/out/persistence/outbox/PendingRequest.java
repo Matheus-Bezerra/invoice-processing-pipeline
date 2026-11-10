@@ -1,4 +1,4 @@
-package dev.matheus.invoice.application.port.out;
+package dev.matheus.invoice.application.port.out.persistence.outbox;
 
 import java.util.UUID;
 
