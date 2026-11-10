@@ -415,7 +415,7 @@ Usa Testcontainers (RabbitMQ e PostgreSQL) e cobre publicação, consumo e reent
 
 - Logs em `stdout` e em português (por exemplo `Nota aprovada`, `Resultado duplicado ignorado`, `Chave inexistente, mensagem enviada para a DLQ`), com `correlationId` (o `invoiceId`) propagado. Sem CNPJ ou valor nos logs em nível `info`.
 - Health check com Spring Actuator.
-- Configuração por `application.yml` e variáveis de ambiente. Valores de exemplo em `.env.example`, sem credenciais reais versionadas.
+- Configuração por `application.yml` e variáveis de ambiente. Valores de exemplo em `.env.example`, sem credenciais reais versionadas. No Compose, todas as variáveis do `.env` são obrigatórias (`${VAR:?mensagem}`): se faltar alguma, ou se estiver vazia, o `docker compose up` falha antes de criar os containers, com o nome da variável.
 - Docker Compose sobe `postgres`, `rabbitmq`, `api`, `worker`, `invoice-webhook` e `provider-simulator`, com *healthchecks* e dependências entre eles. `api`, `worker` e `invoice-webhook` usam a mesma imagem, com perfis diferentes.
 - Portas: `api` 8080, `worker` 8081, `invoice-webhook` 8082 e `provider-simulator` 8083. O Swagger do webhook fica em `localhost:8082/swagger-ui.html`. Todas as portas são publicadas só em `127.0.0.1` (acessíveis só da própria máquina): os serviços conversam entre si pela rede interna do Compose, e assim o broker e o banco, com a senha do `.env.example`, não ficam expostos à rede local.
 - O segredo do webhook (`WEBHOOK_HMAC_SECRET`) vem do `.env`, com valor de exemplo apenas local no `.env.example`. Ele não tem valor padrão na aplicação: sem a variável, o perfil `webhook` não sobe. O `worker` conhece `PROVIDER_BASE_URL`, e o simulador conhece `WEBHOOK_URL`.

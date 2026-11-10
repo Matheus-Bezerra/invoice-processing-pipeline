@@ -2,13 +2,13 @@ services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB no .env (veja o .env.example)}
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env (veja o .env.example)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env (veja o .env.example)}
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?defina POSTGRES_USER no .env (veja o .env.example)} -d ${POSTGRES_DB:?defina POSTGRES_DB no .env (veja o .env.example)}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -16,8 +16,8 @@ services:
   rabbitmq:
     image: rabbitmq:4.4-management
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?defina RABBITMQ_USER no .env (veja o .env.example)}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env (veja o .env.example)}
     ports:
       - "127.0.0.1:5672:5672"
       - "127.0.0.1:15672:15672"
@@ -30,12 +30,12 @@ services:
   api:
     build: .
     environment: &app-env
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?defina POSTGRES_DB no .env (veja o .env.example)}
+      DB_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env (veja o .env.example)}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env (veja o .env.example)}
       RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_USER: ${RABBITMQ_USER:?defina RABBITMQ_USER no .env (veja o .env.example)}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env (veja o .env.example)}
       SPRING_PROFILES_ACTIVE: api
     ports:
       - "127.0.0.1:8080:8080"
@@ -56,7 +56,7 @@ services:
     environment:
       <<: *app-env
       SPRING_PROFILES_ACTIVE: worker
-      PROVIDER_BASE_URL: ${PROVIDER_BASE_URL}
+      PROVIDER_BASE_URL: ${PROVIDER_BASE_URL:?defina PROVIDER_BASE_URL no .env (veja o .env.example)}
     ports:
       - "127.0.0.1:8081:8081"
     # Espera a api para não disputar a execução das migrações Flyway na subida, e o provedor para não mandar
@@ -78,8 +78,8 @@ services:
     build: .
     environment:
       RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_USER: ${RABBITMQ_USER:?defina RABBITMQ_USER no .env (veja o .env.example)}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env (veja o .env.example)}
       WEBHOOK_HMAC_SECRET: ${WEBHOOK_HMAC_SECRET:?defina WEBHOOK_HMAC_SECRET no .env (veja o .env.example)}
       SPRING_PROFILES_ACTIVE: webhook
     ports:
@@ -98,7 +98,7 @@ services:
   provider-simulator:
     build: ./provider-simulator
     environment:
-      WEBHOOK_URL: ${WEBHOOK_URL}
+      WEBHOOK_URL: ${WEBHOOK_URL:?defina WEBHOOK_URL no .env (veja o .env.example)}
       WEBHOOK_HMAC_SECRET: ${WEBHOOK_HMAC_SECRET:?defina WEBHOOK_HMAC_SECRET no .env (veja o .env.example)}
     ports:
       - "127.0.0.1:8083:8083"

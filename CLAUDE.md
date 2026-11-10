@@ -113,7 +113,7 @@ docker compose up --build          # postgres, rabbitmq, api (8080), worker (808
 docker compose down                # derruba tudo
 ```
 
-O `.env` precisa de `WEBHOOK_HMAC_SECRET`, `PROVIDER_BASE_URL` e `WEBHOOK_URL` (veja o `.env.example`); sem o segredo o Compose não sobe. Quem já tinha um `.env` antigo deve acrescentar essas linhas.
+Todas as variáveis do `.env.example` são obrigatórias: o Compose usa `${VAR:?mensagem}` e, se alguma faltar ou estiver vazia, para antes de criar os containers e diz qual é. Ao acrescentar uma variável ao Compose, use a mesma sintaxe e inclua-a no `.env.example`.
 
 O simulador é um projeto Maven separado, com wrapper próprio:
 
