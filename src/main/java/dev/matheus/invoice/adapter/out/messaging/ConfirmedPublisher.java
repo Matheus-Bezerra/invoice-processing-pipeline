@@ -8,6 +8,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -29,7 +30,13 @@ public final class ConfirmedPublisher {
     public void send(String routingKey, Message message, UUID messageId) {
         CorrelationData correlation = new CorrelationData(messageId.toString());
 
-        rabbitTemplate.send(EXCHANGE, routingKey, message, correlation);
+        try {
+            rabbitTemplate.send(EXCHANGE, routingKey, message, correlation);
+        } catch (AmqpException e) {
+            // Broker fora do ar (conexão recusada, host que não resolve, timeout de conexão) também é falha de
+            // publicação: sem isso o webhook responderia 500 em vez de 503.
+            throw new MessagePublishException("Broker indisponível: não foi possível enviar a mensagem", e);
+        }
 
         CorrelationData.Confirm confirm = awaitConfirm(correlation);
         if (correlation.getReturned() != null) {
