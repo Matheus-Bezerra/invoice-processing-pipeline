@@ -21,8 +21,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Topologia declarada nos dois perfis (a declaração é idempotente): a api precisa do exchange para publicar e o
- * worker, das filas de solicitação e de resultado e das duas DLQs.
+ * Topologia declarada nos três perfis (a declaração é idempotente). Como a publicação é {@code mandatory}, quem
+ * publica precisa da fila de destino já ligada ao exchange: a api, da fila de solicitação, e o webhook, da de
+ * resultado. O worker consome as duas filas e usa as duas DLQs.
  */
 @Configuration(proxyBeanMethods = false)
 class RabbitTopologyConfig {
