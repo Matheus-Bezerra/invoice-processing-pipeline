@@ -23,6 +23,12 @@ class WebhookExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final String RETRY_AFTER_SECONDS = "5";
 
+    @ExceptionHandler(PayloadTooLargeException.class)
+    ProblemDetail handlePayloadTooLarge(PayloadTooLargeException ex) {
+        log.warn("Callback acima do limite de tamanho, nada foi publicado: motivo={}", ex.getMessage());
+        return problem(HttpStatus.CONTENT_TOO_LARGE, "Corpo muito grande", ex.getMessage());
+    }
+
     @ExceptionHandler(InvalidSignatureException.class)
     ProblemDetail handleInvalidSignature(InvalidSignatureException ex) {
         log.warn("Assinatura do callback inválida, nada foi publicado: motivo={}", ex.getMessage());

@@ -36,6 +36,9 @@ public interface InvoiceApi {
     @ApiResponse(responseCode = "400", description = "Chave de acesso ausente, fora do formato ou corpo inválido",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "413", description = "Corpo acima de 8 KB, recusado antes de ser lido por inteiro",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<InvoiceResponse> create(@RequestBody CreateInvoiceRequest request);
 

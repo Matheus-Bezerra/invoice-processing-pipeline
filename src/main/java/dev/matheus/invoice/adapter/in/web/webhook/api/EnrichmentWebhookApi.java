@@ -1,11 +1,11 @@
 package dev.matheus.invoice.adapter.in.web.webhook.api;
 
 import dev.matheus.invoice.adapter.in.web.webhook.dto.EnrichmentResultRequest;
+import java.io.InputStream;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -21,8 +21,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public interface EnrichmentWebhookApi {
 
     @Operation(summary = "Recebe o resultado do enriquecimento",
-            description = "Só o provedor chama este endpoint. A assinatura HMAC-SHA256 do corpo bruto é conferida "
-                    + "primeiro, depois o formato do resultado, e só então ele é publicado na fila e confirmado "
+            description = "Só o provedor chama este endpoint. O tamanho do corpo é conferido primeiro (até "
+                    + "64 KB). Depois vem a assinatura HMAC-SHA256 do corpo bruto, depois o formato do resultado, e só então ele é publicado na fila e confirmado "
                     + "pelo broker. O webhook não aplica regras de negócio nem acessa o banco: aprovar ou rejeitar "
                     + "a nota é do consumer do resultado. O mesmo callback recebido duas vezes é publicado duas "
                     + "vezes, e o consumer descarta a duplicata.",
@@ -39,13 +39,18 @@ public interface EnrichmentWebhookApi {
             + "com o corpo. Nada é publicado",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "413", description = "Corpo acima do limite (64 KB). É recusado antes da "
+            + "verificação da assinatura, sem ler o corpo inteiro. Nada é publicado",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(responseCode = "503", description = "O broker não confirmou a publicação (nack, timeout ou "
             + "mensagem devolvida). O provedor deve reenviar o callback",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
     @PostMapping(path = "/enrichment-results", consumes = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<Void> receive(
-            @RequestBody(required = false) byte[] body,
+            // Corpo lido como stream, com teto de tamanho, antes do HMAC. Documentado em requestBody acima.
+            @Parameter(hidden = true) InputStream body,
             @Parameter(description = "Assinatura do corpo bruto: sha256=<HMAC-SHA256 em hexadecimal, 64 caracteres> "
                     + "calculado com o segredo compartilhado", example = "sha256=9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
             @RequestHeader(name = "X-Signature", required = false) String signature);

@@ -1,6 +1,11 @@
 server:
   port: 8080
 
+invoice:
+  api:
+    # Teto do corpo das requisições, conferido antes de desserializar o JSON (413 acima disso). O corpo real tem ~70 bytes.
+    max-body-bytes: 8192
+
 springdoc:
   api-docs:
     enabled: true

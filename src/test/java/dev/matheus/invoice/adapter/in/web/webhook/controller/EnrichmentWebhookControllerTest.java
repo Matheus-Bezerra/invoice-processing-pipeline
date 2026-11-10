@@ -1,6 +1,7 @@
 package dev.matheus.invoice.adapter.in.web.webhook.controller;
 
 import dev.matheus.invoice.adapter.in.web.webhook.verification.EnrichmentResultParser;
+import dev.matheus.invoice.adapter.in.web.webhook.verification.LimitedBodyReader;
 import dev.matheus.invoice.adapter.in.web.webhook.verification.SignatureVerifier;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -35,10 +36,10 @@ import dev.matheus.invoice.application.port.out.messaging.ResultPublishFailedExc
 import dev.matheus.invoice.application.service.provider.EnrichmentResultPublishingService;
 import dev.matheus.invoice.application.service.provider.PublishEnrichmentResultCommand;
 
-/** Nível W: webhook do provedor (H1 a H5). A ordem de verificação é assinatura, payload e publicação. */
+/** Nível W: webhook do provedor (H1 a H5 e H9). A ordem de verificação é tamanho, assinatura, payload e publicação. */
 @WebMvcTest(value = EnrichmentWebhookController.class, properties = "invoice.webhook.hmac-secret=segredo-de-teste")
 @ActiveProfiles("webhook")
-@Import({SignatureVerifier.class, EnrichmentResultParser.class})
+@Import({LimitedBodyReader.class, SignatureVerifier.class, EnrichmentResultParser.class})
 class EnrichmentWebhookControllerTest {
 
     private static final String SECRET = "segredo-de-teste";
@@ -46,6 +47,8 @@ class EnrichmentWebhookControllerTest {
     private static final UUID MESSAGE_ID = UUID.fromString("c3b2f2a1-5d6e-3f7a-8b9c-1e2d3c4b5a69");
     private static final UUID CORRELATION_ID = UUID.fromString("0b6f5c1e-8d2a-4c53-9a43-6f4b6a0f2f11");
     private static final String KEY = "35260112345678000199550010000012341000012345";
+    /** Valor de {@code invoice.webhook.max-body-bytes} em {@code application-webhook.yml}. */
+    private static final int MAX_BODY_BYTES = 65_536;
 
     @Autowired
     private MockMvc mockMvc;
@@ -197,5 +200,31 @@ class EnrichmentWebhookControllerTest {
         call(valid(), "sha256=" + "a".repeat(64)).andExpect(status().isUnauthorized());
 
         verify(service, never()).publish(any());
+    }
+
+    @Test
+    void h9_bodyAboveTheLimitIs413EvenWhenCorrectlySigned() throws Exception {
+        String body = "x".repeat(MAX_BODY_BYTES + 1);
+
+        callSigned(body)
+                .andExpect(status().isContentTooLarge())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Corpo muito grande"));
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void h9_sizeIsCheckedBeforeTheSignature() throws Exception {
+        call("x".repeat(MAX_BODY_BYTES + 1), null).andExpect(status().isContentTooLarge());
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void h9_bodyExactlyAtTheLimitGoesOnToTheNextChecks() throws Exception {
+        callSigned("x".repeat(MAX_BODY_BYTES)).andExpect(status().isBadRequest());
+
+        verifyNoInteractions(service);
     }
 }

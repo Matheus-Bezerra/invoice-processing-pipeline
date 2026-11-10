@@ -19,6 +19,8 @@ invoice:
   webhook:
     # Sem valor padrão de propósito: sem WEBHOOK_HMAC_SECRET a aplicação não sobe.
     hmac-secret: ${WEBHOOK_HMAC_SECRET:}
+    # Teto do corpo do callback, conferido antes do HMAC (413 acima disso). O envelope real tem menos de 1 KB.
+    max-body-bytes: 65536
 
 springdoc:
   api-docs:
