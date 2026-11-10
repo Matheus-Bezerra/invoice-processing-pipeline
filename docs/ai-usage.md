@@ -312,6 +312,14 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 - **Feito por script** (`git mv` e ajuste de `package` e `import`) e conferido pela compilação e pelo `verify`: 204 testes, 0 falhas, o mesmo número de antes. Nenhum comportamento mudou.
 - **Incidente:** o primeiro `verify` depois do `service` travou por mais de 20 minutos porque o Docker Desktop parou de responder (nem `docker info` voltava). Encerrei o build preso, o autor pediu o reinício completo do Docker, e o `verify` foi refeito do zero. Uma soma de relatórios parciais ("236 testes") apareceu no meio disso e foi descartada por misturar relatórios antigos.
 
+### Reorganização de `port/out` e `adapter/out`
+
+- **Pedido do autor:** olhar `application/port/out` e as pastas `messaging` e `persistence` de `adapter/out`, depois de ter dividido o webhook e o `service`.
+- **Decisões:** `port/out` espelha o `adapter/out` (`persistence`, `messaging`, `provider`, `clock`). A persistência é dividida **por entidade** (`invoice`, `outbox`, `processedmessage`) e não por tecnologia, e `messaging` ganhou `request` e `result`, com a base do *publisher confirm* (`ConfirmedPublisher` e `MessagePublishException`) na raiz, agora `public`.
+- **JPA e JDBC juntos:** o autor perguntou se a mistura é boa prática. Resposta registrada na spec (seção 9): é um padrão aceito, mas com custo; no `Invoice` o JPA se paga menos, porque as consultas que importam já são escritas à mão. Nada foi migrado. Usar só JDBC fica como evolução possível, a ser feita à parte porque exige reexecutar os testes de concorrência.
+- **Feito por script** (`git mv`, `package` e `import`), conferido pela compilação e pelo `verify`. Nenhum comportamento mudou.
+- `MessagingTopology` continua em `config/messaging`, importado por adapters (dependência no sentido contrário). Não foi tocado porque o autor não pediu; fica como candidato a refatoração.
+
 ## Reformulação antes da fatia 6 — provedor via webhook
 
 Só documentação (`spec.md`, `flow.md`, `checklist.md`, `CLAUDE.md`). Nenhum código, `pom.xml`, Compose ou teste foi alterado, e a fatia 6 não foi implementada.

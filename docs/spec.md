@@ -436,11 +436,13 @@ Segue a skill `spring-hexagonal-architecture`, pacote base `dev.matheus.invoice`
 
 - `domain`: `Invoice` (com `approve` e `reject` como comportamento), `InvoiceStatus`, `AccessKey` e `Cnpj` como value objects, e as exceções de negócio.
 - `application/service`, com um subpacote por assunto: `invoice` (criação e consulta de notas), `outbox` (relay), `result` (processamento do resultado) e `provider` (repasse da solicitação ao provedor e publicação do resultado recebido pelo webhook).
-- `application/port/out`: repositório de notas, outbox, publicação da solicitação, registro de mensagens processadas, relógio, `ProviderClient` (chamada HTTP ao provedor) e `EnrichmentResultPublisher` (publicação do resultado na fila).
+- `application/port/out`, com os mesmos subpacotes do `adapter/out`: `persistence` (por entidade: `invoice`, `outbox` e `processedmessage`), `messaging` (publicação da solicitação e do resultado na fila), `provider` (`ProviderClient`, a chamada HTTP ao provedor) e `clock`. As exceções de um port ficam junto dele.
 - `adapter/in/web`: `api` (interface `InvoiceApi` com as anotações Swagger/OpenAPI), `controller` (implementa a interface), `dto` e tratamento de erros. O endpoint do webhook fica em `adapter/in/web/webhook`, com a mesma divisão (`api`, `controller`, `dto`, `exception`) mais `verification` (HMAC e leitura do envelope).
 - `adapter/in/messaging`: consumers do resultado e da solicitação.
 - `adapter/in/scheduler`: o job do relay.
-- `adapter/out/persistence`, `adapter/out/messaging`, `adapter/out/http`: JPA, publisher RabbitMQ e client HTTP do provedor.
+- `adapter/out/persistence` (por entidade: `invoice`, `outbox` e `processedmessage`), `adapter/out/messaging` (`request` e `result`, mais a base comum do *publisher confirm*), `adapter/out/http` e `adapter/out/clock`.
+
+Persistência: `Invoice` usa JPA (entidade separada do domínio, com *mapper* manual) e `outbox` e `processed_messages` usam `JdbcClient`. Não é acaso: as duas últimas não têm modelo de domínio e dependem de SQL específico do PostgreSQL (`FOR UPDATE SKIP LOCKED` em lote, JSONB, `ON CONFLICT DO NOTHING`), que o `JdbcClient` expressa em poucas linhas. Mesmo no `Invoice` as consultas que garantem a correção (`INSERT ... ON CONFLICT`, `SELECT ... FOR UPDATE` e o `UPDATE` com guarda de estado) são escritas à mão. Os dois convivem na mesma transação, porque o `JpaTransactionManager` expõe a mesma conexão ao `JdbcClient`; é isso que grava a nota e a linha do outbox juntas. O custo é manter duas tecnologias e lembrar que o cache de entidades do JPA não enxerga o que o `JdbcClient` grava (por isso o `UPDATE` da nota usa `clearAutomatically`). Usar só JDBC seria possível e fica como evolução.
 
 Perfis do Spring: `api` e `worker` usam banco e RabbitMQ. O perfil `webhook` usa **só** RabbitMQ: exclui as autoconfigurações de DataSource, JPA e Flyway e não registra beans de persistência, relay nem consumers. Cada perfil ativa apenas os beans de que precisa. O HMAC é verificado por um componente do adapter web, e o domínio não conhece o webhook.
 

@@ -47,15 +47,16 @@ dev.matheus.invoice/
 │   ├── service/       um subpacote por assunto: invoice/ (criação e consulta de notas),
 │   │                  outbox/ (relay), result/ (processamento do resultado) e
 │   │                  provider/ (repasse da solicitação ao provedor, publicação do resultado do webhook)
-│   └── port/out/      InvoiceRepository, OutboxPort, EnrichmentRequestPublisher,
-│                      ProcessedMessageStore, ClockPort, ProviderClient,
-│                      EnrichmentResultPublisher
+│   └── port/out/      espelha adapter/out: persistence/ (invoice/, outbox/, processedmessage/),
+│                      messaging/ (EnrichmentRequestPublisher, EnrichmentResultPublisher),
+│                      provider/ (ProviderClient) e clock/ (ClockPort), cada port com as suas exceções
 ├── adapter/
 │   ├── in/web/        api/ (interface com Swagger), controller/, dto/, exception/,
 │   │                  webhook/ com os mesmos api/, controller/, dto/, exception/ e verification/ (HMAC e parser)
 │   ├── in/messaging/  consumers do resultado e da solicitação
 │   ├── in/scheduler/  job do relay
-│   └── out/           persistence/ (JPA), messaging/ (publisher RabbitMQ), http/ (client do provedor)
+│   └── out/           persistence/ por entidade: invoice/ (JPA), outbox/ e processedmessage/ (JDBC);
+│                      messaging/ (request/ e result/, publishers RabbitMQ), http/ (client do provedor), clock/
 ├── config/
 └── shared/            só se houver algo realmente compartilhado
 ```
