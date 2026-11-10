@@ -219,6 +219,47 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 - E5 repetido com `docker compose stop postgres`: a 1ª execução falhou na hora (17:52:05, conexão derrubada pelo desligamento) e as outras às 17:52:12, 17:52:21 e 17:52:34 (esperas de 2s, 4s e 8s + 5s do pool). DLQ em **29s, contra 134s antes**. Um `POST` com o banco fora devolveu `500` em 5,1s.
 - `./mvnw verify` depois do ajuste: 134 testes, 0 falhas.
 
+## Fatia 6A — Chamada ao provedor pelo `worker`
+
+### Fontes consultadas
+
+| Item | Fonte |
+|---|---|
+| `JdkClientHttpRequestFactory` (`setReadTimeout(Duration)`, construtor com `HttpClient`) e `RestClient.builder()` | Bytecode do `spring-web-7.0.8.jar` (`javap`). `RestClient.builder()` basta, sem `spring-boot-starter-restclient` nem dependência nova |
+| Retry stateless e recoverer do listener | Já conferidos na fatia 5 (`spring-rabbit-4.1.2`); só extraídos para `ListenerRetry` |
+
+### O que a IA gerou
+
+- Testes primeiro, confirmados vermelhos (erro de compilação): `EnrichmentRequestForwardingServiceTest` (A), `EnrichmentRequestConsumerUnitTest` (A: C1 a C4, 7 variações de malformada), `ProviderHttpClientTest` (provedor fake com `HttpServer` do JDK: 202, 400/404/422, 500/502/503, resposta lenta, conexão recusada, mensagens sem corpo) e `EnrichmentRequestConsumerTest` (I, RabbitMQ real: C1 a C4 com 100 ms de espera).
+- `ProviderClient` e as exceções `ProviderRejectedException` e `ProviderUnavailableException`, `EnrichmentRequestForwardingService` e `ForwardEnrichmentRequestCommand`, `ProviderHttpClient`, `EnrichmentRequestConsumer`, `RequestConsumerConfig`, `ListenerRetry` (extraído de `ResultConsumerConfig` sem mudar o comportamento), a DLQ `invoice.enrichment.request.dlq` na topologia e as propriedades `invoice.provider.*` e `invoice.messaging.request-retry.*`.
+
+### Decisões tomadas com o autor
+
+- Malformada é só o que a spec diz (JSON inválido, falta `messageId`, `payload.invoiceId` ou `payload.accessKey`, ou UUID ilegível). A chave **não** é revalidada: o `worker` só repassa, a api já validou e um `4xx` do provedor leva à DLQ.
+- `correlationId` é opcional: sem ele, o `X-Correlation-Id` usa o `invoiceId`. Ele serve só para rastreio, não para idempotência.
+- Testes em nível A, do adapter HTTP e I (consumer real, RabbitMQ real e provedor fake).
+- A idempotência do `worker` é delegada ao provedor (deduplica pelo `messageId`). O corpo vai idêntico, sem alteração.
+
+### O que foi revisado ou corrigido
+
+- Os 25 testes de contexto quebraram na primeira execução: `EnrichmentRequestForwardingService` existia em todos os perfis, mas o `ProviderClient` só no `worker`. O serviço passou a ser `@Profile("worker")`.
+- Os testes C3 de nível I falharam (contagens 5 e 3 em vez de 4): o `HttpServer` do JDK atende com uma única thread, então chamadas lentas se enfileiravam e a contagem vazava para o teste seguinte. O erro era do teste; o servidor fake passou a usar um pool de threads e o teste espera as 4 chamadas.
+- O redirecionamento HTTP foi desligado no client (`Redirect.NEVER`): `3xx` conta como falha técnica, e o corpo não segue para outro destino.
+- O log `Tentativas esgotadas` passou a incluir a fila, porque agora há dois consumers.
+
+### Verificação executada
+
+- `./mvnw verify`: 163 testes, 0 falhas (29 novos).
+- `grep`: `application` não importa `org.springframework.amqp`, `web`, `http`, `adapter` nem `config`; `domain` continua limpo; os logs do consumer e do serviço não levam chave nem corpo.
+- Compose (`docker compose down` e `up --build --force-recreate`): `rabbitmqctl` mostrou `invoice.enrichment.request` com DLX e `request.dlq`. Um `POST /invoices` sem provedor no ar devolveu `201`; o worker esgotou as tentativas (`Tentativas esgotadas ... fila=invoice.enrichment.request`), a mensagem foi para `invoice.enrichment.request.dlq` e a nota ficou `IN_ANALYSIS`.
+- O `docker compose down` foi necessário: o RabbitMQ não aceita redeclarar a fila de solicitação com DLX diferente (`PRECONDITION_FAILED`). As mensagens acumuladas nessa fila se perderam.
+
+### O que falta verificar
+
+- Ainda não há provedor real na porta 8083: o caminho de sucesso (`202`) só foi exercitado com o provedor fake dos testes. O simulador e o Compose completo são da fatia 6C.
+- O `docker compose down` é obrigatório para quem já tinha a fila antiga criada (ambientes antigos). Entra no README (fatia 9).
+- Os logs de falha do próprio Spring AMQP continuam em inglês, como na fatia 5.
+
 ## Reformulação antes da fatia 6 — provedor via webhook
 
 Só documentação (`spec.md`, `flow.md`, `checklist.md`, `CLAUDE.md`). Nenhum código, `pom.xml`, Compose ou teste foi alterado, e a fatia 6 não foi implementada.

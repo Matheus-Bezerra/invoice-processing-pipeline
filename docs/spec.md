@@ -305,6 +305,7 @@ O consumer da solicitação roda no `worker` e **não acessa o banco**: ele só 
 | Provedor responde `5xx`, timeout ou conexão recusada | sim | 3 retries com esperas de 2s, 4s e 8s (até 4 execuções) e depois DLQ da solicitação |
 
 - Mesma política de retry e `prefetch = 1` do consumer de resultado (4.5).
+- O `X-Correlation-Id` usa o `correlationId` da mensagem; se faltar, usa o `payload.invoiceId`. O `worker` não revalida o formato da chave (a api já validou): uma chave inválida publicada direto na fila é recusada pelo provedor com `4xx` e vai para a DLQ. Um UUID ilegível conta como malformada.
 - A chamada é idempotente do lado do provedor, que deduplica pelo `messageId`. Um retry depois de um timeout, em que o provedor chegou a aceitar a primeira chamada, não gera dois resultados diferentes.
 - Chamar o provedor não altera o estado da nota. A nota continua `IN_ANALYSIS` até o resultado ser processado.
 - Quando a solicitação cai na DLQ, a nota fica em `IN_ANALYSIS` (ver as limitações em 12).
@@ -422,8 +423,9 @@ Parâmetros configuráveis, com os padrões:
 | Timeout do publisher confirm | 5s |
 | Timeout de conexão com o RabbitMQ | 2s |
 | Espera por uma conexão do pool do banco | 5s |
-| Retries dos consumers (resultado e solicitação) | 3 (esperas de 2s, 4s e 8s) |
-| Timeout de conexão e de resposta na chamada ao provedor | 2s e 5s |
+| Retries dos consumers (resultado e solicitação) | 3 (esperas de 2s, 4s e 8s; `RESULT_RETRY_*` e `REQUEST_RETRY_*`) |
+| Timeout de conexão e de resposta na chamada ao provedor | 2s e 5s (`PROVIDER_CONNECT_TIMEOUT`, `PROVIDER_READ_TIMEOUT`) |
+| URL base do provedor | `http://localhost:8083` (`PROVIDER_BASE_URL`) |
 | Atraso do simulador | 300 ms |
 | Reenvios do callback pelo simulador | 3 (esperas de 1s, 2s e 4s) |
 

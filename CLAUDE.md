@@ -109,7 +109,7 @@ docker compose up --build          # postgres, rabbitmq, api (8080), worker (808
 docker compose down                # derruba tudo
 ```
 
-Hoje o Compose sobe só `postgres`, `rabbitmq`, `api` e `worker`. `invoice-webhook` e `provider-simulator` entram nas fatias 6B e 6C.
+Hoje o Compose sobe só `postgres`, `rabbitmq`, `api` e `worker` (o `worker` já consome a solicitação, mas `PROVIDER_BASE_URL` só ganha um provedor na fatia 6C). `invoice-webhook` e `provider-simulator` entram nas fatias 6B e 6C.
 
 Rodar localmente fora do Compose (com `postgres` e `rabbitmq` do Compose no ar):
 

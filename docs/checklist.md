@@ -63,15 +63,15 @@ Níveis dos testes: **D** domínio, **A** serviço de aplicação, **W** HTTP (M
 
 ## Fatia 6A — Chamada ao provedor pelo `worker`
 
-- [ ] Fila `invoice.enrichment.request` com DLX e DLQ `invoice.enrichment.request.dlq`
-- [ ] Port `ProviderClient` e client HTTP em `adapter/out/http`, com timeouts de conexão e de resposta configuráveis
-- [ ] Consumer da solicitação no `worker`, com `prefetch = 1`
-- [ ] Retry (3 retries, 2s, 4s e 8s) para `5xx`, timeout e conexão recusada; `4xx` e malformada direto para a DLQ
-- [ ] **C1** (A): solicitação consumida chama o provedor com o corpo e o `X-Correlation-Id` corretos, recebe `202` e dá `ack`
-- [ ] **C2** (A): `4xx` do provedor vai direto para a DLQ da solicitação, sem retry
-- [ ] **C3** (A): `5xx` ou falta de resposta faz 3 retries e depois DLQ
-- [ ] **C4** (A): solicitação malformada vai direto para a DLQ, sem chamar o provedor
-- [ ] Logs em português, com `correlationId` e sem dados sensíveis
+- [x] Fila `invoice.enrichment.request` com DLX e DLQ `invoice.enrichment.request.dlq`
+- [x] Port `ProviderClient` e client HTTP em `adapter/out/http`, com timeouts de conexão e de resposta configuráveis
+- [x] Consumer da solicitação no `worker`, com `prefetch = 1`
+- [x] Retry (3 retries, 2s, 4s e 8s) para `5xx`, timeout e conexão recusada; `4xx` e malformada direto para a DLQ
+- [x] **C1** (A): solicitação consumida chama o provedor com o corpo e o `X-Correlation-Id` corretos, recebe `202` e dá `ack`
+- [x] **C2** (A): `4xx` do provedor vai direto para a DLQ da solicitação, sem retry
+- [x] **C3** (A): `5xx` ou falta de resposta faz 3 retries e depois DLQ
+- [x] **C4** (A): solicitação malformada vai direto para a DLQ, sem chamar o provedor
+- [x] Logs em português, com `correlationId` e sem dados sensíveis
 
 ## Fatia 6B — `invoice-webhook` (perfil `webhook`)
 
