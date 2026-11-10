@@ -189,6 +189,76 @@ class InvoiceTest {
 
             assertRejected(invoice, "Dados de enriquecimento inválidos: cnpj inválido, amount negativo");
         }
+
+        @Test
+        void amountAboveTheLimitIsRejectedInsteadOfApproved() {
+            Invoice invoice = newInvoice();
+
+            invoice.applyEnrichment(new EnrichmentData(CNPJ, new BigDecimal("10000000000000.00"), DATE, false), NOW);
+
+            assertRejected(invoice, "Dados de enriquecimento inválidos: amount acima do limite");
+            assertThat(invoice.amount()).isNull();
+        }
+
+        @Test
+        void largestAcceptedAmountIsStillApproved() {
+            Invoice invoice = newInvoice();
+
+            invoice.applyEnrichment(new EnrichmentData(CNPJ, new BigDecimal("9999999999999.99"), DATE, false), NOW);
+
+            assertThat(invoice.status()).isEqualTo(InvoiceStatus.APPROVED);
+        }
+
+        @Test
+        void amountThatRoundsAboveTheLimitIsRejected() {
+            Invoice invoice = newInvoice();
+
+            invoice.applyEnrichment(new EnrichmentData(CNPJ, new BigDecimal("9999999999999.995"), DATE, false), NOW);
+
+            assertRejected(invoice, "Dados de enriquecimento inválidos: amount acima do limite");
+        }
+
+        @Test
+        void absurdExponentIsRejectedWithoutExpandingTheNumber() {
+            Invoice invoice = newInvoice();
+
+            invoice.applyEnrichment(new EnrichmentData(CNPJ, new BigDecimal("1E+1000000000"), DATE, false), NOW);
+
+            assertRejected(invoice, "Dados de enriquecimento inválidos: amount acima do limite");
+        }
+
+        @Test
+        void cnpjLongerThanTheColumnIsRejectedAndNotStored() {
+            Invoice invoice = newInvoice();
+
+            invoice.applyEnrichment(new EnrichmentData("12ABC34501DE35XXXXXX", AMOUNT, DATE, false), NOW);
+
+            assertRejected(invoice, "Dados de enriquecimento inválidos: cnpj inválido");
+            assertThat(invoice.cnpj()).isNull();
+            assertThat(invoice.amount()).isEqualByComparingTo(AMOUNT);
+        }
+
+        @Test
+        void negativeAmountTooBigToStoreIsReportedAsNegativeAndNotStored() {
+            Invoice invoice = newInvoice();
+
+            invoice.applyEnrichment(new EnrichmentData(CNPJ, new BigDecimal("-99999999999999999"), DATE, false), NOW);
+
+            assertRejected(invoice, "Dados de enriquecimento inválidos: amount negativo");
+            assertThat(invoice.amount()).isNull();
+        }
+
+        @Test
+        void cancelledNoteWithDataThatDoesNotFitIsStillRejectedAsCancelled() {
+            Invoice invoice = newInvoice();
+
+            invoice.applyEnrichment(new EnrichmentData("X".repeat(40), new BigDecimal("1E+30"), DATE, true), NOW);
+
+            assertRejected(invoice, "Nota cancelada pelo emitente");
+            assertThat(invoice.cnpj()).isNull();
+            assertThat(invoice.amount()).isNull();
+            assertThat(invoice.cancelled()).isTrue();
+        }
     }
 
     @Nested

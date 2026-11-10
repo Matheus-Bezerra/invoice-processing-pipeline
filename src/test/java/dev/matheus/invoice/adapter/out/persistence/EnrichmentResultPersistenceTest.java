@@ -104,6 +104,44 @@ class EnrichmentResultPersistenceTest {
     }
 
     @Test
+    void cnpjLongerThanTheColumnRejectsTheNoteInsteadOfFailingTheUpdate() {
+        EnrichmentData tooLong = new EnrichmentData("12ABC34501DE35XXXXXX", new BigDecimal("10.00"),
+                LocalDate.of(2026, 1, 10), false);
+
+        assertThat(process(UUID.randomUUID(), tooLong)).isEqualTo(ResultHandling.REJECTED);
+
+        Map<String, Object> row = invoiceRow();
+        assertThat(row.get("status")).isEqualTo("REJECTED");
+        assertThat(row.get("rejection_reason")).isEqualTo("Dados de enriquecimento inválidos: cnpj inválido");
+        assertThat(row.get("cnpj")).isNull();
+        assertThat(row.get("approved_at")).isNull();
+    }
+
+    @Test
+    void amountAboveTheColumnPrecisionRejectsTheNoteInsteadOfFailingTheUpdate() {
+        EnrichmentData tooBig = new EnrichmentData("12ABC34501DE35", new BigDecimal("99999999999999999.00"),
+                LocalDate.of(2026, 1, 10), false);
+
+        assertThat(process(UUID.randomUUID(), tooBig)).isEqualTo(ResultHandling.REJECTED);
+
+        Map<String, Object> row = invoiceRow();
+        assertThat(row.get("status")).isEqualTo("REJECTED");
+        assertThat(row.get("rejection_reason")).isEqualTo("Dados de enriquecimento inválidos: amount acima do limite");
+        assertThat(row.get("amount")).isNull();
+        assertThat(row.get("approved_at")).isNull();
+    }
+
+    @Test
+    void largestAcceptedAmountIsApprovedAndStored() {
+        EnrichmentData largest = new EnrichmentData("12ABC34501DE35", new BigDecimal("9999999999999.99"),
+                LocalDate.of(2026, 1, 10), false);
+
+        assertThat(process(UUID.randomUUID(), largest)).isEqualTo(ResultHandling.APPROVED);
+
+        assertThat((BigDecimal) invoiceRow().get("amount")).isEqualByComparingTo("9999999999999.99");
+    }
+
+    @Test
     void t7_sameMessageTwiceUpdatesOnlyOnce() {
         UUID messageId = UUID.randomUUID();
         process(messageId, APPROVABLE);
