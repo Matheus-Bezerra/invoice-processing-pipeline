@@ -304,6 +304,14 @@ Registro do que a IA gerou, do que foi revisado ou corrigido e do que ainda prec
 - Não há limite de tamanho do corpo além do padrão do servidor; vale olhar na revisão de segurança (fatia 8), junto com replay e SSRF.
 - O `invoice-webhook` ainda não tem serviço no Compose nem `WEBHOOK_HMAC_SECRET` no `.env.example` (fatia 6C).
 
+### Reorganização de pacotes depois da revisão do autor
+
+- **Pedido do autor:** a pasta do webhook tinha 8 arquivos soltos e o `application/service`, 12. O autor sugeriu subpastas.
+- **Webhook:** `adapter/in/web/webhook` passou a ter `api`, `controller`, `dto`, `exception` e `verification`, como a `api` de notas. O que cruza pacotes virou `public` (interface, DTO, exceções, `SignatureVerifier` e parser); o controller e o handler de erros continuam *package-private*.
+- **Service:** `application/service` virou `invoice`, `outbox`, `result` e `provider`, por assunto e não por tipo (uma pasta `exception` teria só uma classe). Os testes foram movidos junto.
+- **Feito por script** (`git mv` e ajuste de `package` e `import`) e conferido pela compilação e pelo `verify`: 204 testes, 0 falhas, o mesmo número de antes. Nenhum comportamento mudou.
+- **Incidente:** o primeiro `verify` depois do `service` travou por mais de 20 minutos porque o Docker Desktop parou de responder (nem `docker info` voltava). Encerrei o build preso, o autor pediu o reinício completo do Docker, e o `verify` foi refeito do zero. Uma soma de relatórios parciais ("236 testes") apareceu no meio disso e foi descartada por misturar relatórios antigos.
+
 ## Reformulação antes da fatia 6 — provedor via webhook
 
 Só documentação (`spec.md`, `flow.md`, `checklist.md`, `CLAUDE.md`). Nenhum código, `pom.xml`, Compose ou teste foi alterado, e a fatia 6 não foi implementada.
